@@ -223,7 +223,7 @@ table.mini td{font-variant-numeric:tabular-nums}
       <input id="g-code" type="password" inputmode="numeric" autocomplete="current-password" placeholder="담당 선생님에게 받은 코드">
     </div>
     <button class="btn primary" id="btnLogin">시작하기</button>
-    <p class="gate-note">코드를 모르면 담당 선생님에게 문의하세요. 한 번 로그인하면 이 기기에서는 다음부터 바로 열립니다. PC와 휴대폰 어느 쪽에서 들어와도 같은 기록이 이어집니다.</p>
+    <p class="gate-note">코드를 모르면 담당 선생님에게 문의하세요. 한 번 로그인하면 이 기기에서는 30일 동안 바로 열립니다. PC와 휴대폰 어느 쪽에서 들어와도 같은 기록이 이어집니다.</p>
   </div>
 </div>
 
@@ -409,7 +409,10 @@ table.mini td{font-variant-numeric:tabular-nums}
    구글 시트 연동 주소. Apps Script 웹앱 URL을 넣으세요.
    비워두면 이 기기에만 저장되는 시험 모드로 동작합니다.
 ========================================================= */
-const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbyJ3pE6pfJu3hHT69Fdq_kkGyG92fL6i8fhzDqYIrSQdZJe5xX27Wp2_zNrqB2txvtT/exec";
+const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbyp3F1S6rxkcDOt9zlpaOwBq3kovO5BeWbHC4wEf7fzEMz7VDodUkG9bWY-JbUvi3G7/exec";
+
+/* 로그인 유지 기간(일). 이 기간이 지나면 다시 이름과 코드를 입력해야 합니다. */
+const SESSION_DAYS = 30;
 
 const $  = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
@@ -423,7 +426,11 @@ async function callApi(action, extra){
   const payload = Object.assign({ action, name: SESSION.name, code: SESSION.code }, extra||{});
   const res = await fetch(API_ENDPOINT, { method:"POST", body: JSON.stringify(payload) });
   const out = await res.json();
-  if (!out.ok) throw new Error(out.message || out.error || "요청에 실패했습니다");
+  if (!out.ok) {
+    const err = new Error(out.message || out.error || "요청에 실패했습니다");
+    if (out.error === "auth") err.auth = true;
+    throw err;
+  }
   return out;
 }
 
@@ -440,6 +447,21 @@ function gateError(msg){
   const card = document.querySelector(".gate-card");
   card.classList.remove("shake"); void card.offsetWidth; card.classList.add("shake");
 }
+function saveSession(){
+  try { localStorage.setItem("symc:session", JSON.stringify(
+    { name: SESSION.name, code: SESSION.code, role: SESSION.role, at: Date.now() })); } catch(e){}
+}
+function readSession(){
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem("symc:session") || "null"); } catch(e){ return null; }
+  if (!s || !s.name || !s.code) return null;
+  const age = Date.now() - (s.at || 0);
+  if (age > SESSION_DAYS * 86400000) return null;   // 기간 만료
+  return s;
+}
+function clearSession(){ try { localStorage.removeItem("symc:session"); } catch(e){} }
+
+/* 이름+코드로 서버 인증 */
 async function doLogin(name, code){
   if (!API_ENDPOINT) throw new Error("서버가 아직 연결되지 않았습니다. 담당 선생님에게 문의하세요.");
   let out;
@@ -451,27 +473,52 @@ async function doLogin(name, code){
   } catch(e){
     throw new Error("서버에 연결하지 못했습니다. 인터넷 상태를 확인하세요.");
   }
-  if (!out || !out.ok) throw new Error((out && out.message) || "이름 또는 코드가 올바르지 않습니다.");
-  SESSION = { name: out.name, code, role: out.role };
+  if (!out || !out.ok) {
+    const err = new Error((out && out.message) || "이름 또는 코드가 올바르지 않습니다.");
+    err.auth = true;
+    throw err;
+  }
+  SESSION = { name: out.name, code: code, role: out.role };
   DATA = out.entries || [];
-  try { localStorage.setItem("symc:session", JSON.stringify(SESSION)); } catch(e){}
-  await startApp();
+  saveSession();
+  await enterApp(true);
+  toast(SESSION.name + "님, 반갑습니다", false, true);
 }
-async function startApp(){
-  const card = document.querySelector(".gate-card");
-  card.classList.add("done");
-  await new Promise(r=>setTimeout(r, 300));
+
+/* 본화면 진입. animate=false 이면 로그인창을 거치지 않고 즉시 표시 */
+async function enterApp(animate){
+  if (animate) {
+    const card = document.querySelector(".gate-card");
+    card.classList.add("done");
+    await new Promise(r=>setTimeout(r, 300));
+    card.classList.remove("done");
+  }
   $("#gate").hidden = true;
   $("#app").hidden = false;
-  card.classList.remove("done");
   $("#whoName").textContent = SESSION.name;
   $("#whoRole").textContent = SESSION.role === "admin" ? "전체 열람" : "본인 기록";
   $("#whoRole").classList.toggle("admin", SESSION.role === "admin");
   $$(".adminOnly").forEach(el => el.hidden = (SESSION.role !== "admin"));
   buildTimes();
-  $("#f-date").value = new Date().toISOString().slice(0,10);
+  if (!$("#f-date").value) $("#f-date").value = new Date().toISOString().slice(0,10);
   refreshFilters(); renderList(); renderStats(); renderFolio();
-  toast(SESSION.name + "님, 반갑습니다", false, true);
+}
+
+/* 로그인창으로 되돌리기 */
+function backToGate(msg){
+  clearSession(); SESSION = null; DATA = [];
+  $("#app").hidden = true;
+  $("#gate").hidden = false;
+  if (msg) gateError(msg); else $("#gateMsg").classList.remove("show");
+  $("#g-code").value = "";
+  $("#g-name").focus();
+}
+
+function setLoading(on){
+  $$("#listBox,#statsBox,#folioBox").forEach(el=>{
+    if (on) el.innerHTML = '<div class="empty"><strong>기록을 불러오는 중입니다</strong>잠시만 기다려주세요.</div>';
+  });
+  $("#btnSave").disabled = on;
 }
 
 $("#btnLogin").addEventListener("click", async ()=>{
@@ -489,7 +536,7 @@ $("#btnLogin").addEventListener("click", async ()=>{
 
 $("#btnLogout").addEventListener("click", ()=>{
   if (!confirm("로그아웃할까요? 저장된 기록은 사라지지 않습니다.")) return;
-  try { localStorage.removeItem("symc:session"); } catch(e){}
+  clearSession();
   location.reload();
 });
 
@@ -500,16 +547,29 @@ $("#btnLogout").addEventListener("click", ()=>{
     document.querySelector(".gate-card").classList.remove("shake");
     return;
   }
-  let saved = null;
-  try { saved = JSON.parse(localStorage.getItem("symc:session") || "null"); } catch(e){}
-  if (saved && saved.name && saved.code) {
-    const btn = $("#btnLogin"); btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>불러오는 중';
-    try { await doLogin(saved.name, saved.code); return; }
-    catch(e){ try{ localStorage.removeItem("symc:session"); }catch(err){} }
-    finally { btn.disabled = false; btn.textContent = "시작하기"; }
+  const saved = readSession();
+  if (!saved) { $("#g-name").focus(); return; }
+
+  // 저장된 로그인이 있으면 로그인창을 보여주지 않고 바로 본화면으로
+  SESSION = { name: saved.name, code: saved.code, role: saved.role || "student" };
+  await enterApp(false);
+  setLoading(true);
+  try {
+    const out = await callApi("list");
+    SESSION.role = out.role || SESSION.role;
+    DATA = out.entries || [];
+    saveSession();                       // 접속할 때마다 기간 연장
+    $$(".adminOnly").forEach(el => el.hidden = (SESSION.role !== "admin"));
+    $("#whoRole").textContent = SESSION.role === "admin" ? "전체 열람" : "본인 기록";
+    $("#whoRole").classList.toggle("admin", SESSION.role === "admin");
+    setLoading(false);
+    refreshFilters(); renderList(); renderStats(); renderFolio();
+  } catch(err){
+    setLoading(false);
+    if (err && err.auth) backToGate("등록 정보가 바뀌었습니다. 다시 로그인해주세요.");
+    else { renderList(); renderStats(); renderFolio();
+           toast("기록을 불러오지 못했습니다. 새로고침해주세요", true); }
   }
-  $("#g-name").focus();
 })();
 
 /* ================= 시각 ================= */

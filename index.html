@@ -14,6 +14,7 @@
   --radius:10px; --shadow:0 1px 2px rgba(27,35,51,.06), 0 8px 24px rgba(27,35,51,.05);
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{margin:0;padding:0}
 body{font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   color:var(--ink);background:var(--wash);font-size:15px;line-height:1.55;-webkit-text-size-adjust:100%}
@@ -35,6 +36,31 @@ button,input,select,textarea{font:inherit;color:inherit}
   border-radius:8px;padding:9px 12px;margin-bottom:14px;display:none}
 .gate-msg.show{display:block}
 .gate-note{font-size:12px;color:var(--ink-soft);margin-top:18px;line-height:1.6}
+.gate-card.shake{animation:shake .4s cubic-bezier(.36,.07,.19,.97)}
+@keyframes shake{
+  10%,90%{transform:translateX(-2px)} 20%,80%{transform:translateX(4px)}
+  30%,50%,70%{transform:translateX(-7px)} 40%,60%{transform:translateX(7px)}
+}
+.gate-card.done{animation:liftOut .32s ease forwards}
+@keyframes liftOut{to{opacity:0;transform:translateY(-10px) scale(.98)}}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);
+  border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:-2px;margin-right:7px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.btn.primary .spinner{border-color:rgba(255,255,255,.4);border-top-color:#fff}
+
+/* 저장 완료 표시 */
+#flash{position:fixed;inset:0;display:grid;place-items:center;z-index:120;pointer-events:none;
+  background:rgba(27,35,51,.18);opacity:0;transition:opacity .18s ease}
+#flash.show{opacity:1}
+#flash .box{background:var(--paper);border-radius:16px;padding:26px 34px;text-align:center;
+  box-shadow:0 20px 50px rgba(0,0,0,.2);transform:scale(.9);transition:transform .22s cubic-bezier(.2,.9,.3,1.2)}
+#flash.show .box{transform:scale(1)}
+#flash .ring{width:52px;height:52px;margin:0 auto 12px;border-radius:50%;background:#E9F6EE;display:grid;place-items:center}
+#flash svg{width:28px;height:28px}
+#flash .check{stroke:#1E8E4E;stroke-width:3.4;fill:none;stroke-linecap:round;stroke-linejoin:round;
+  stroke-dasharray:32;stroke-dashoffset:32;animation:draw .38s .1s ease forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+#flash p{margin:0;font-size:15px;font-weight:600}
 
 .topbar{position:sticky;top:0;z-index:40;background:var(--paper);border-bottom:1px solid var(--line)}
 .topbar-inner{max-width:960px;margin:0 auto;padding:14px 18px 0;display:flex;flex-direction:column;gap:12px}
@@ -159,6 +185,9 @@ table.mini td{font-variant-numeric:tabular-nums}
   z-index:100;box-shadow:0 10px 30px rgba(0,0,0,.2);max-width:88vw;text-align:center}
 .toast.show{transform:translateX(-50%) translateY(0)}
 .toast.warn{background:var(--warn)}
+.toast.ok{background:#1E8E4E}
+.toast::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;
+  background:rgba(255,255,255,.85);margin-right:8px;vertical-align:2px}
 .banner{background:var(--brand-wash);border:1px solid #F3D6BE;color:var(--brand-deep);padding:10px 14px;
   border-radius:8px;font-size:13px;margin-bottom:14px}
 
@@ -366,6 +395,14 @@ table.mini td{font-variant-numeric:tabular-nums}
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div id="flash" hidden aria-hidden="true">
+  <div class="box">
+    <div class="ring">
+      <svg viewBox="0 0 32 32"><path class="check" d="M7 16.5 L13.5 23 L25 10"></path></svg>
+    </div>
+    <p id="flashText">저장했습니다</p>
+  </div>
+</div>
 
 <script>
 /* =========================================================
@@ -389,53 +426,52 @@ async function callApi(action, extra){
   if (!out.ok) throw new Error(out.message || out.error || "요청에 실패했습니다");
   return out;
 }
-const LOCAL_KEY = name => "symclog:" + name.trim();
 
 async function loadEntries(){
-  if (!API_ENDPOINT) {
-    try { return JSON.parse(localStorage.getItem(LOCAL_KEY(SESSION.name)) || "[]"); } catch(e){ return []; }
-  }
   return (await callApi("list")).entries || [];
 }
 async function saveEntries(member, entries){
-  if (!API_ENDPOINT) { localStorage.setItem(LOCAL_KEY(member), JSON.stringify(entries)); return; }
   await callApi("save", { member, entries });
 }
 
 /* ================= 로그인 ================= */
 function gateError(msg){
   const m = $("#gateMsg"); m.textContent = msg; m.classList.add("show");
+  const card = document.querySelector(".gate-card");
+  card.classList.remove("shake"); void card.offsetWidth; card.classList.add("shake");
 }
-async function doLogin(name, code, silent){
-  if (!API_ENDPOINT) {
-    SESSION = { name, code, role: "student" };
-  } else {
+async function doLogin(name, code){
+  if (!API_ENDPOINT) throw new Error("서버가 아직 연결되지 않았습니다. 담당 선생님에게 문의하세요.");
+  let out;
+  try {
     const res = await fetch(API_ENDPOINT, {
       method:"POST", body: JSON.stringify({ action:"login", name, code })
     });
-    const out = await res.json();
-    if (!out.ok) throw new Error(out.message || "이름 또는 코드가 올바르지 않습니다.");
-    SESSION = { name: out.name, code, role: out.role };
-    DATA = out.entries || [];
+    out = await res.json();
+  } catch(e){
+    throw new Error("서버에 연결하지 못했습니다. 인터넷 상태를 확인하세요.");
   }
+  if (!out || !out.ok) throw new Error((out && out.message) || "이름 또는 코드가 올바르지 않습니다.");
+  SESSION = { name: out.name, code, role: out.role };
+  DATA = out.entries || [];
   try { localStorage.setItem("symc:session", JSON.stringify(SESSION)); } catch(e){}
-  await startApp(!API_ENDPOINT);
+  await startApp();
 }
-async function startApp(needLoad){
+async function startApp(){
+  const card = document.querySelector(".gate-card");
+  card.classList.add("done");
+  await new Promise(r=>setTimeout(r, 300));
   $("#gate").hidden = true;
   $("#app").hidden = false;
+  card.classList.remove("done");
   $("#whoName").textContent = SESSION.name;
   $("#whoRole").textContent = SESSION.role === "admin" ? "전체 열람" : "본인 기록";
   $("#whoRole").classList.toggle("admin", SESSION.role === "admin");
   $$(".adminOnly").forEach(el => el.hidden = (SESSION.role !== "admin"));
-  if (!API_ENDPOINT) {
-    $("#storeBanner").hidden = false;
-    $("#storeBanner").textContent = "구글 시트가 연결되지 않아 이 기기에만 저장됩니다. API_ENDPOINT를 설정하세요.";
-  }
-  if (needLoad) { try { DATA = await loadEntries(); } catch(e){ DATA = []; } }
   buildTimes();
   $("#f-date").value = new Date().toISOString().slice(0,10);
   refreshFilters(); renderList(); renderStats(); renderFolio();
+  toast(SESSION.name + "님, 반갑습니다", false, true);
 }
 
 $("#btnLogin").addEventListener("click", async ()=>{
@@ -443,9 +479,10 @@ $("#btnLogin").addEventListener("click", async ()=>{
   $("#gateMsg").classList.remove("show");
   if (!name) return gateError("이름을 입력하세요.");
   if (!code) return gateError("본인 코드를 입력하세요.");
-  const btn = $("#btnLogin"); btn.disabled = true; btn.textContent = "확인 중...";
+  const btn = $("#btnLogin"); btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>확인 중';
   try { await doLogin(name, code); }
-  catch(err){ gateError(err.message); }
+  catch(err){ gateError(err.message); $("#g-code").select(); }
   finally { btn.disabled = false; btn.textContent = "시작하기"; }
 });
 ["#g-name","#g-code"].forEach(s=>$(s).addEventListener("keydown", e=>{ if(e.key==="Enter") $("#btnLogin").click(); }));
@@ -457,11 +494,20 @@ $("#btnLogout").addEventListener("click", ()=>{
 });
 
 (async function boot(){
+  if (!API_ENDPOINT) {
+    $("#btnLogin").disabled = true;
+    gateError("서버가 연결되지 않았습니다. index.html의 API_ENDPOINT를 설정하세요.");
+    document.querySelector(".gate-card").classList.remove("shake");
+    return;
+  }
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem("symc:session") || "null"); } catch(e){}
   if (saved && saved.name && saved.code) {
-    try { await doLogin(saved.name, saved.code, true); return; }
+    const btn = $("#btnLogin"); btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>불러오는 중';
+    try { await doLogin(saved.name, saved.code); return; }
     catch(e){ try{ localStorage.removeItem("symc:session"); }catch(err){} }
+    finally { btn.disabled = false; btn.textContent = "시작하기"; }
   }
   $("#g-name").focus();
 })();
@@ -591,23 +637,39 @@ $("#btnSave").addEventListener("click", async ()=>{
     savedAt: new Date().toISOString()
   };
 
-  const btn = $("#btnSave"); btn.disabled = true; btn.textContent = "저장 중...";
+  const btn = $("#btnSave"); btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>저장 중';
+  const wasEditing = !!editingId;
   const before = DATA.slice();
   DATA = DATA.filter(e=>e.id !== entry.id); DATA.push(entry);
   try {
     const bucket = DATA.filter(e => String(e.member).trim() === String(owner).trim())
                        .sort((a,b)=>a.date.localeCompare(b.date));
     await saveEntries(owner, bucket);
-    toast(editingId ? "일지를 수정했습니다" : "일지를 저장했습니다");
     editingId = null; $("#editNote").hidden = true;
     resetForm();
     refreshFilters(); renderList(); renderStats(); renderFolio();
+    flash(wasEditing ? "수정했습니다" : "저장했습니다");
   } catch(err){
     DATA = before;
     console.error(err);
-    toast("저장에 실패했습니다. 인터넷 연결을 확인하고 다시 시도하세요", true);
+    toast("저장하지 못했습니다. 인터넷 연결을 확인하고 다시 눌러주세요", true);
   } finally { btn.disabled = false; btn.textContent = "일지 저장"; }
 });
+
+/* 저장 완료 오버레이 */
+let flashTimer;
+function flash(msg){
+  const f = $("#flash");
+  $("#flashText").textContent = msg;
+  f.hidden = false;
+  requestAnimationFrame(()=>f.classList.add("show"));
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(()=>{
+    f.classList.remove("show");
+    setTimeout(()=>{ f.hidden = true; }, 200);
+  }, 1100);
+}
 
 $("#btnReset").addEventListener("click", ()=>{ editingId=null; $("#editNote").hidden=true; resetForm(); toast("빈 양식으로 돌아왔습니다"); });
 
@@ -706,7 +768,7 @@ function renderList(){
     DATA = DATA.filter(x=>x.id!==e.id);
     try {
       await saveEntries(e.member, DATA.filter(x=>String(x.member).trim()===String(e.member).trim()));
-      toast("삭제했습니다");
+      toast("삭제했습니다", false, true);
     } catch(err){ DATA = before; toast("삭제에 실패했습니다", true); }
     refreshFilters(); renderList(); renderStats(); renderFolio();
   }));
@@ -859,15 +921,17 @@ $("#btnCsv").addEventListener("click", ()=>{
   a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
   a.download = "SYMC_활동일지_"+new Date().toISOString().slice(0,10)+".csv";
   a.click(); URL.revokeObjectURL(a.href);
-  toast("파일을 내려받았습니다");
+  toast("파일을 내려받았습니다", false, true);
 });
 
 /* ================= 토스트 ================= */
 let toastTimer;
-function toast(msg, warn){
+function toast(msg, warn, ok){
   const t=$("#toast"); t.textContent=msg;
-  t.classList.toggle("warn", !!warn); t.classList.add("show");
-  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove("show"), warn?3200:2400);
+  t.classList.toggle("warn", !!warn);
+  t.classList.toggle("ok", !!ok);
+  t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove("show"), warn?3400:2200);
 }
 </script>
 </body>

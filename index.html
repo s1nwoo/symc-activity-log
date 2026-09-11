@@ -178,6 +178,81 @@ table.mini td{font-variant-numeric:tabular-nums}
 .pf-entry dt{color:var(--ink-soft);font-size:12.5px;font-weight:600;padding-top:2px}
 .pf-entry dd{margin:0;white-space:pre-wrap}
 
+/* ---------- 포트폴리오 (프로필 → 성과 → 프로젝트 → 결과물 → 성장 → 활동) ---------- */
+.pf-profile{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);
+  padding:26px 24px;box-shadow:var(--shadow);margin-bottom:14px}
+.pf-profile .eyebrow{font-size:12.5px;color:var(--brand-deep);font-weight:700}
+.pf-profile h2{margin:8px 0 6px;font-size:30px;letter-spacing:-.04em;line-height:1.15}
+.pf-profile .period{margin:0;color:var(--ink-soft);font-size:13.5px;font-variant-numeric:tabular-nums}
+.pf-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.pf-tag{font-size:12.5px;font-weight:600;padding:4px 11px;border-radius:999px;
+  background:var(--brand-wash);color:var(--brand-deep)}
+.pf-tag.tool{background:#EEF0FB;color:var(--violet)}
+
+.pf-gauge{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.pf-gauge-head{display:flex;justify-content:space-between;align-items:baseline;
+  font-size:12.5px;color:var(--ink-soft);margin-bottom:7px}
+.pf-gauge-head b{font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+.pf-gauge .track,.pf-gauge .fill{display:block}
+.pf-todo{margin:11px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:5px}
+.pf-todo li{font-size:12.5px;color:var(--ink-soft);padding-left:17px;position:relative}
+.pf-todo li::before{content:"○";position:absolute;left:0;color:var(--brand)}
+.pf-todo li.done{color:#1E8E4E}
+.pf-todo li.done::before{content:"●";color:#1E8E4E}
+
+.pf-sec{margin:24px 0 10px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.pf-sec h3{margin:0;font-size:16px;letter-spacing:-.02em}
+.pf-sec span{font-size:12px;color:var(--ink-soft)}
+
+.pf-projects{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pf-proj{background:var(--paper);border:1px solid var(--line);border-left:3px solid var(--brand);
+  border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+.pf-proj h4{margin:0 0 4px;font-size:15.5px;letter-spacing:-.02em}
+.pf-proj .meta{font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.pf-proj .duty{margin:9px 0 0;font-size:13.5px;color:var(--ink-soft)}
+.pf-proj .nums{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+
+.pf-outs{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.pf-out{display:block;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);
+  padding:13px 15px;box-shadow:var(--shadow);text-decoration:none;color:inherit}
+.pf-out:hover{border-color:var(--brand)}
+.pf-out .plat{font-size:11.5px;font-weight:700;color:var(--brand-deep)}
+.pf-out .ttl{font-size:13.5px;margin-top:3px;word-break:break-all}
+.pf-out .when{font-size:11.5px;color:var(--ink-soft);margin-top:5px;font-variant-numeric:tabular-nums}
+
+.pf-growth{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);
+  padding:18px;box-shadow:var(--shadow)}
+.pf-time{margin:0;padding:0;list-style:none;border-left:2px solid var(--line)}
+.pf-time li{position:relative;padding:0 0 15px 18px}
+.pf-time li:last-child{padding-bottom:0}
+.pf-time li::before{content:"";position:absolute;left:-5px;top:6px;width:8px;height:8px;
+  border-radius:50%;background:var(--brand);border:2px solid var(--paper)}
+.pf-time .when{font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.pf-time .what{font-size:14px;margin-top:2px;white-space:pre-wrap}
+
+details.pf-entry{padding:0}
+details.pf-entry summary{list-style:none;cursor:pointer;padding:14px 74px 14px 16px;position:relative}
+details.pf-entry summary::-webkit-details-marker{display:none}
+details.pf-entry summary::after{content:"펼치기";position:absolute;right:16px;top:14px;font-size:12px;
+  color:var(--brand-deep);font-weight:600}
+details.pf-entry[open] summary::after{content:"접기"}
+details.pf-entry summary .meta{margin-bottom:3px}
+details.pf-entry summary h3{margin:0 0 5px;font-size:16px;letter-spacing:-.02em}
+details.pf-entry summary .one{font-size:13.5px;color:var(--ink-soft);
+  display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+details.pf-entry .body{margin:0 16px;padding:14px 0 16px;border-top:1px solid var(--line)}
+details.pf-entry .body dd a{color:var(--brand-deep);word-break:break-all}
+
+.pf-note{font-size:12.5px;color:var(--ink-soft);background:var(--paper);
+  border:1px dashed var(--line);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px}
+.pf-pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
+.pf-pick button{text-align:left;background:var(--paper);border:1px solid var(--line);
+  border-radius:var(--radius);padding:14px 16px;cursor:pointer;box-shadow:var(--shadow)}
+.pf-pick button:hover{border-color:var(--brand)}
+.pf-pick b{display:block;font-size:15.5px}
+.pf-pick span{font-size:12.5px;color:var(--ink-soft)}
+@media (max-width:720px){ .pf-projects{grid-template-columns:1fr} .pf-profile h2{font-size:25px} }
+
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(160%);background:var(--ink);color:#fff;
   padding:11px 20px;border-radius:999px;font-size:14px;font-weight:600;transition:transform .28s cubic-bezier(.2,.8,.3,1);
   z-index:100;box-shadow:0 10px 30px rgba(0,0,0,.2);max-width:88vw;text-align:center}
@@ -201,7 +276,10 @@ table.mini td{font-variant-numeric:tabular-nums}
   .topbar,.toolbar,.actions,.no-print{display:none!important}
   body{background:#fff;font-size:11pt}
   main{padding:0;max-width:none}
-  .card,.pf-entry,.pf-head{box-shadow:none;border-color:#ccc;break-inside:avoid}
+  .card,.pf-entry,.pf-head,.pf-profile,.pf-proj,.pf-out,.pf-growth,.kpi{box-shadow:none;border-color:#ccc;break-inside:avoid}
+  .pf-note,.pf-pick{display:none!important}
+  details.pf-entry summary::after{display:none}
+  .pf-sec{break-after:avoid}
 }
 </style>
 </head>
@@ -390,14 +468,16 @@ table.mini td{font-variant-numeric:tabular-nums}
         <div class="field wide" style="margin-bottom:14px">
           <label for="f-content">활동내용<span class="req">*</span></label>
           <textarea id="f-content" placeholder="무엇을 했는지 순서대로. 회의라면 안건과 결정사항을 남기면 나중에 찾기 쉽습니다."></textarea>
+          <p class="hint" style="margin:0">인스타·유튜브에 올린 결과물이 있다면 게시물 주소를 그대로 붙여넣으세요. 포트폴리오 〈결과물〉에 자동으로 모입니다.</p>
         </div>
         <div class="field wide" style="margin-bottom:14px">
-          <label for="f-eval">활동평가<span class="req">*</span></label>
-          <textarea id="f-eval" placeholder="느낀점, 새롭게 알게 된 점, 개인 평가"></textarea>
+          <label for="f-eval">활동평가 · 배운 점<span class="req">*</span></label>
+          <textarea id="f-eval" placeholder="어떤 점이 어려웠고 어떻게 해결했는지, 그래서 무엇을 새로 할 수 있게 됐는지 두세 문장으로 적어주세요."></textarea>
+          <p class="hint" style="margin:0">이 칸이 그대로 포트폴리오 〈성장 기록〉이 됩니다.</p>
         </div>
         <div class="field wide">
           <label for="f-next">다음 활동 목표 / 계획<span class="req">*</span></label>
-          <textarea id="f-next" style="min-height:72px"></textarea>
+          <textarea id="f-next" style="min-height:72px" placeholder="다음에 이어서 할 일, 이번에 아쉬워서 보완하고 싶은 점"></textarea>
         </div>
       </div>
     </div>
@@ -965,46 +1045,246 @@ function monthChart(byMonth){
     + keys.map(k=>'<span>'+k.slice(5)+'월 · '+byMonth[k]+'</span>').join("") + '</div>';
 }
 
-/* ================= 포트폴리오 ================= */
+/* =========================================================
+   포트폴리오
+   구성: 프로필 → 누적 성과 → 프로젝트 → 결과물 → 성장 → 전체 활동
+   지금은 시트 컬럼 추가 없이 기존 일지 텍스트에서 최대한 뽑아 쓴다.
+   (프로젝트 = 활동주제 유사도 묶음 / 결과물 = 본문 속 링크 / 도구 = 본문 키워드)
+========================================================= */
+
+/* 본문에서 자동으로 찾아낼 도구 이름 */
+const TOOLS = [
+  ["포토샵",     /포토샵|photoshop/i],
+  ["미리캔버스", /미리\s*캔버스|miri\s*canvas/i],
+  ["릴스편집기", /릴스\s*편집기?/i],
+  ["유튜브",     /유튜브|youtube|유튭/i]
+];
+const URL_RE = /https?:\/\/[^\s<>"'()\[\]]+/g;
+
+function platformOf(u){
+  const h = u.toLowerCase();
+  if (h.indexOf("instagram") >= 0) return "인스타그램";
+  if (h.indexOf("youtube") >= 0 || h.indexOf("youtu.be") >= 0) return "유튜브";
+  if (h.indexOf("tiktok") >= 0) return "틱톡";
+  if (h.indexOf("blog.naver") >= 0 || h.indexOf("naver.me") >= 0 ||
+      h.indexOf("tistory") >= 0 || h.indexOf("brunch") >= 0) return "블로그";
+  return "링크";
+}
+function urlsOf(e){
+  const t = [e.content, e.evaluation, e.etc, e.offline, e.next].join(" ");
+  return (t.match(URL_RE) || []).map(u => u.replace(/[.,)\]]+$/, ""));
+}
+function toolsOf(rows){
+  const c = {};
+  rows.forEach(e=>{
+    const t = [e.duty, e.topic, e.content, e.etc].join(" ");
+    TOOLS.forEach(p => { if (p[1].test(t)) c[p[0]] = (c[p[0]]||0) + 1; });
+  });
+  return Object.entries(c).sort((a,b)=>b[1]-a[1]);
+}
+
+/* 활동주제가 비슷한 일지끼리 묶어 임시 프로젝트를 만든다.
+   2글자 묶음 자카드 유사도. project 컬럼이 생기면 이 부분은 걷어낸다. */
+function normTopic(s){ return String(s||"").toLowerCase().replace(/[^0-9a-z가-힣]/g,""); }
+function bigrams(s){ const o=[]; for(let i=0;i<s.length-1;i++) o.push(s.slice(i,i+2)); return o.length?o:[s]; }
+function simTopic(a,b){
+  const A = new Set(bigrams(a)), B = new Set(bigrams(b));
+  if(!A.size || !B.size) return 0;
+  let n = 0; A.forEach(x=>{ if(B.has(x)) n++; });
+  return n / (A.size + B.size - n);
+}
+function groupProjects(rows){
+  const cl = [];
+  rows.forEach(e=>{
+    const k = normTopic(e.topic); if(!k) return;
+    let best = null, bs = 0;
+    cl.forEach(c=>{ const s = simTopic(k, c.key); if(s > bs){ bs = s; best = c; } });
+    if (best && bs >= 0.45){ best.rows.push(e); best.names.push(e.topic); }
+    else cl.push({ key:k, rows:[e], names:[e.topic] });
+  });
+  cl.forEach(c=>{
+    const cnt = {}; c.names.forEach(n => cnt[n] = (cnt[n]||0)+1);
+    c.title = Object.keys(cnt).sort((a,b)=> cnt[b]-cnt[a] || a.length-b.length)[0];
+    c.rows.sort((a,b)=>a.date.localeCompare(b.date));
+  });
+  return cl.sort((a,b)=> b.rows.length-a.rows.length || a.rows[0].date.localeCompare(b.rows[0].date));
+}
+function topDuties(rs){
+  const c = {};
+  rs.forEach(e=>{ const d = String(e.duty||"").trim(); if(d) c[d] = (c[d]||0)+1; });
+  return Object.entries(c).sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0]).join(" · ");
+}
+function firstLine(s){
+  const t = String(s||"").trim().split(/\n/)[0];
+  return t.length > 90 ? t.slice(0,90) + "…" : t;
+}
+function ymd(d){ return String(d||"").slice(2).replace(/-/g,"."); }
+
 function renderFolio(){
-  const m = val("#p-member"), mo = val("#p-month");
-  const rows = pick(m, mo, "").slice().sort((a,b)=>a.date.localeCompare(b.date));
   const box = $("#folioBox");
+  const m = val("#p-member"), mo = val("#p-month");
+
+  /* 포트폴리오는 개인 단위 문서다. 관리자가 '전체'를 보고 있으면 먼저 단원을 고르게 한다 */
+  if (SESSION.role === "admin" && !m){
+    const by = {};
+    DATA.forEach(e=>{ (by[e.member] = by[e.member] || []).push(e); });
+    const names = Object.keys(by).sort();
+    if(!names.length){ box.innerHTML = emptyBox("보여줄 활동이 없습니다","기록이 쌓이면 포트폴리오가 자동으로 만들어집니다."); return; }
+    box.innerHTML = '<div class="pf-note">포트폴리오는 한 사람 단위로 만들어집니다. 아래에서 단원을 선택하세요.</div>'
+      + '<div class="pf-pick">' + names.map(n=>{
+          const r = by[n].slice().sort((a,b)=>a.date.localeCompare(b.date));
+          return '<button data-who="'+esc(n)+'"><b>'+esc(n)+'</b>'
+               + '<span>활동 '+r.length+'건 · '+ymd(r[0].date)+' ~ '+ymd(r[r.length-1].date)+'</span></button>';
+        }).join("") + '</div>';
+    box.querySelectorAll("[data-who]").forEach(b=>b.addEventListener("click",()=>{
+      $("#p-member").value = b.dataset.who; renderFolio();
+    }));
+    return;
+  }
+
+  const rows = pick(m, mo, "").slice().sort((a,b)=>a.date.localeCompare(b.date));
   if(!rows.length){ box.innerHTML = emptyBox("보여줄 활동이 없습니다","기록을 남기면 포트폴리오가 자동으로 만들어집니다."); return; }
 
-  let hours=0, made=0, uped=0, ppl=0; const types={};
-  rows.forEach(e=>{ hours+=dur(e); made+=sum(e.make); uped+=sum(e.up); ppl+=sum(e.part);
-    (e.types||[]).forEach(t=>types[t]=(types[t]||0)+1); });
-  const period = rows[0].date + " ~ " + rows[rows.length-1].date;
-  const topTypes = Object.entries(types).sort((a,b)=>b[1]-a[1]).slice(0,3).map(t=>t[0]).join(" · ");
-  const who = (SESSION.role==="admin") ? (m || "") : SESSION.name;
+  const who = (SESSION.role === "admin") ? m : SESSION.name;
+  let hours=0, made=0, uped=0, ppl=0; const typeCount = {}, byMonth = {};
+  rows.forEach(e=>{
+    hours += dur(e); made += sum(e.make); uped += sum(e.up); ppl += sum(e.part);
+    (e.types||[]).forEach(t=> typeCount[t] = (typeCount[t]||0)+1);
+    byMonth[e.date.slice(0,7)] = (byMonth[e.date.slice(0,7)]||0) + 1;
+  });
+  const clusters = groupProjects(rows);
+  const projects = clusters.filter(c=>c.rows.length >= 2);
+  const tools    = toolsOf(rows);
+  const outs     = [];
+  rows.forEach(e=> urlsOf(e).forEach(u=> outs.push({ url:u, e:e })));
+  const from = rows[0].date, to = rows[rows.length-1].date;
 
-  box.innerHTML = '<div class="pf-head">'
-    + '<div class="eyebrow">2026 세종청소년음악센터 소리지음 마케터</div>'
-    + '<h2>'+(who ? esc(who)+" 활동 포트폴리오" : "마케터 활동 포트폴리오")+'</h2>'
-    + '<p>'+period+' · 주요 활동 '+esc(topTypes||"-")+'</p>'
-    + '<div class="pf-stats">'
-    +   '<div><b>'+rows.length+'</b><span>활동 건수</span></div>'
-    +   '<div><b>'+(Math.round(hours*10)/10)+'</b><span>누적 시간</span></div>'
-    +   '<div><b>'+made+'</b><span>콘텐츠 제작</span></div>'
-    +   '<div><b>'+uped+'</b><span>콘텐츠 업로드</span></div>'
-    +   '<div><b>'+ppl+'</b><span>만난 참여자</span></div>'
-    + '</div></div>'
-    + rows.map(e=>{
-      const mk=sum(e.make), up=sum(e.up), p=sum(e.part);
-      const perf = [mk?'제작 '+mk+'건':"", up?'업로드 '+up+'건':"", p?'참여 '+p+'명':""].filter(Boolean).join(" · ");
-      return '<article class="pf-entry">'
-        + '<div class="meta">'+e.date+' '+e.start+'~'+e.end+' · '+esc(e.place)+(who?"":" · "+esc(e.member))+'</div>'
-        + '<h3>'+esc(e.topic)+'</h3><dl>'
-        + '<dt>담당업무</dt><dd>'+esc(e.duty)+'</dd>'
-        + '<dt>활동유형</dt><dd>'+esc((e.types||[]).join(", "))+(e.offline?" — "+esc(e.offline):"")+(e.etc?" — "+esc(e.etc):"")+'</dd>'
-        + '<dt>활동내용</dt><dd>'+esc(e.content)+'</dd>'
-        + (perf?'<dt>성과</dt><dd>'+perf+'</dd>':"")
-        + '<dt>배운 점</dt><dd>'+esc(e.evaluation)+'</dd>'
-        + '<dt>다음 계획</dt><dd>'+esc(e.next)+'</dd>'
-        + '</dl></article>';
-    }).join("");
+  /* ---------- 1. 프로필 ---------- */
+  const tagHtml =
+      Object.entries(typeCount).sort((a,b)=>b[1]-a[1])
+        .map(p=>'<span class="pf-tag">#'+esc(p[0].replace(/[\s\/]/g,""))+' '+p[1]+'회</span>').join("")
+    + tools.map(p=>'<span class="pf-tag tool">#'+esc(p[0])+'</span>').join("");
+
+  const deep = rows.filter(e=>String(e.evaluation||"").trim().length >= 40).length;
+  const checks = [
+    ["활동 3건 이상 기록", rows.length >= 3,
+      "일지를 "+Math.max(0, 3-rows.length)+"건 더 쓰면 채워집니다"],
+    ["활동유형 3종 이상 경험", Object.keys(typeCount).length >= 3,
+      "아직 안 해본 유형의 활동도 남겨보세요"],
+    ["활동평가를 충실히 쓴 일지가 절반 이상", rows.length > 0 && deep/rows.length >= 0.5,
+      "활동평가를 두세 문장 이상으로 (현재 "+deep+"/"+rows.length+"건)"],
+    ["두 번 이상 이어진 프로젝트 있음", projects.length > 0,
+      "같은 주제로 이어서 활동하면 프로젝트로 묶입니다"],
+    ["결과물 링크 1개 이상", outs.length > 0,
+      "활동내용에 인스타·유튜브 주소를 붙여넣으면 결과물로 모입니다"]
+  ];
+  const pct = Math.round(checks.filter(c=>c[1]).length / checks.length * 100);
+
+  let html = '<div class="pf-profile">'
+    + '<div class="eyebrow">2026 세종청소년음악센터 소리지음 · 마케터 홍보단</div>'
+    + '<h2>'+esc(who || "마케터")+'</h2>'
+    + '<p class="period">'+ymd(from)+' ~ '+ymd(to)+' · 활동 '+rows.length+'건 · 누적 '+(Math.round(hours*10)/10)+'시간</p>'
+    + (tagHtml ? '<div class="pf-tags">'+tagHtml+'</div>' : "")
+    + '<div class="pf-gauge no-print">'
+    +   '<div class="pf-gauge-head"><span>포트폴리오 완성도</span><b>'+pct+'%</b></div>'
+    +   '<span class="track" style="display:block"><span class="fill" style="width:'+pct+'%"></span></span>'
+    +   '<ul class="pf-todo">'
+    +     checks.map(c=>'<li class="'+(c[1]?"done":"")+'">'+esc(c[0])+(c[1]?"":' <span style="opacity:.8">— '+esc(c[2])+'</span>')+'</li>').join("")
+    +   '</ul>'
+    + '</div></div>';
+
+  /* ---------- 2. 누적 성과 ---------- */
+  html += '<div class="kpis">'
+    + '<div class="kpi accent"><b>'+rows.length+'</b><span>활동 건수</span></div>'
+    + '<div class="kpi"><b>'+(Math.round(hours*10)/10)+'</b><span>누적 활동시간</span></div>'
+    + '<div class="kpi"><b>'+made+'</b><span>콘텐츠 제작·기획</span></div>'
+    + '<div class="kpi"><b>'+uped+'</b><span>콘텐츠 업로드</span></div>'
+    + '<div class="kpi"><b>'+ppl+'</b><span>만난 참여자</span></div>'
+    + '<div class="kpi"><b>'+projects.length+'</b><span>프로젝트</span></div>'
+    + '</div>';
+
+  /* ---------- 3. 프로젝트 ---------- */
+  if (projects.length){
+    html += '<div class="pf-sec"><h3>주요 프로젝트</h3><span>활동주제가 이어진 기록을 자동으로 묶었습니다</span></div>'
+      + '<div class="pf-projects">'
+      + projects.map(c=>{
+          const mk = c.rows.reduce((a,e)=>a+sum(e.make),0);
+          const up = c.rows.reduce((a,e)=>a+sum(e.up),0);
+          const pt = c.rows.reduce((a,e)=>a+sum(e.part),0);
+          const hr = Math.round(c.rows.reduce((a,e)=>a+dur(e),0)*10)/10;
+          const du = topDuties(c.rows);
+          return '<article class="pf-proj">'
+            + '<h4>'+esc(c.title)+'</h4>'
+            + '<div class="meta">'+ymd(c.rows[0].date)+' ~ '+ymd(c.rows[c.rows.length-1].date)+' · 활동 '+c.rows.length+'건 · '+hr+'시간</div>'
+            + (du ? '<p class="duty">맡은 일 — '+esc(du)+'</p>' : "")
+            + '<div class="nums">'
+            +   (mk?'<span class="pill">제작 '+mk+'건</span>':"")
+            +   (up?'<span class="pill">업로드 '+up+'건</span>':"")
+            +   (pt?'<span class="pill">참여 '+pt+'명</span>':"")
+            + '</div></article>';
+        }).join("")
+      + '</div>';
+  }
+
+  /* ---------- 4. 결과물 ---------- */
+  html += '<div class="pf-sec"><h3>결과물</h3><span>일지 본문에 적은 링크를 모았습니다</span></div>';
+  if (outs.length){
+    html += '<div class="pf-outs">' + outs.map(o=>
+        '<a class="pf-out" href="'+esc(o.url)+'" target="_blank" rel="noopener">'
+      + '<div class="plat">'+platformOf(o.url)+'</div>'
+      + '<div class="ttl">'+esc(o.e.topic)+'</div>'
+      + '<div class="when">'+ymd(o.e.date)+'</div></a>').join("") + '</div>';
+  } else {
+    html += '<div class="pf-note">아직 링크가 없습니다. 인스타·유튜브에 올린 게시물 주소를 '
+          + '활동내용 칸에 그대로 붙여넣으면 여기에 자동으로 모입니다.</div>';
+  }
+
+  /* ---------- 5. 성장 ---------- */
+  const cum = {}; let run = 0;
+  Object.keys(byMonth).sort().forEach(k=>{ run += byMonth[k]; cum[k] = run; });
+  const learned = rows.filter(e=>String(e.evaluation||"").trim()).slice(-8).reverse();
+  html += '<div class="pf-sec"><h3>성장 기록</h3><span>쌓인 활동량과 그때그때 배운 점</span></div>'
+    + '<div class="pf-growth">'
+    +   monthChart(cum)
+    +   '<p class="hint" style="margin:10px 0 0">월별 누적 활동 건수</p>'
+    + '</div>';
+  if (learned.length){
+    html += '<div class="pf-growth" style="margin-top:10px"><ul class="pf-time">'
+      + learned.map(e=>'<li><div class="when">'+ymd(e.date)+' · '+esc(e.topic)+'</div>'
+                     + '<div class="what">'+esc(e.evaluation)+'</div></li>').join("")
+      + '</ul></div>';
+  }
+
+  /* ---------- 6. 전체 활동 ---------- */
+  html += '<div class="pf-sec"><h3>전체 활동 기록</h3><span>제목을 누르면 자세한 내용이 펼쳐집니다</span></div>'
+    + rows.slice().reverse().map(e=>{
+        const mk = sum(e.make), up = sum(e.up), pt = sum(e.part);
+        const perf = [mk?'제작 '+mk+'건':"", up?'업로드 '+up+'건':"", pt?'참여 '+pt+'명':""].filter(Boolean).join(" · ");
+        const links = urlsOf(e);
+        return '<details class="pf-entry">'
+          + '<summary>'
+          +   '<div class="meta">'+e.date+' '+e.start+'~'+e.end+' · '+esc(e.place)+(who?"":" · "+esc(e.member))+'</div>'
+          +   '<h3>'+esc(e.topic)+'</h3>'
+          +   '<div class="one">'+esc(firstLine(e.content))+'</div>'
+          + '</summary>'
+          + '<div class="body"><dl>'
+          +   '<dt>담당업무</dt><dd>'+esc(e.duty)+'</dd>'
+          +   '<dt>활동유형</dt><dd>'+esc((e.types||[]).join(", "))+(e.offline?" — "+esc(e.offline):"")+(e.etc?" — "+esc(e.etc):"")+'</dd>'
+          +   '<dt>활동내용</dt><dd>'+esc(e.content)+'</dd>'
+          +   (perf?'<dt>성과</dt><dd>'+perf+'</dd>':"")
+          +   '<dt>배운 점</dt><dd>'+esc(e.evaluation)+'</dd>'
+          +   '<dt>다음 계획</dt><dd>'+esc(e.next)+'</dd>'
+          +   (links.length?'<dt>링크</dt><dd>'+links.map(u=>'<a href="'+esc(u)+'" target="_blank" rel="noopener">'+esc(u)+'</a>').join("<br>")+'</dd>':"")
+          + '</dl></div></details>';
+      }).join("");
+
+  box.innerHTML = html;
 }
+
+/* 인쇄할 때는 접힌 활동도 모두 펼쳐서 나가게 한다 */
+window.addEventListener("beforeprint", ()=>{
+  document.querySelectorAll("#folioBox details").forEach(d=>d.open = true);
+});
 $("#btnPrint").addEventListener("click", ()=>window.print());
 
 /* ================= CSV ================= */

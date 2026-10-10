@@ -383,7 +383,7 @@ details.pf-entry .body dd a{color:var(--brand-deep);word-break:break-all}
   <div class="topbar-inner">
     <div class="brand">
       <svg class="logo" role="img" aria-label="소리지음"><use href="#symcLogo"></use></svg>
-      <h1>SYMC 마케터 활동일지<span class="year"> 2026</span></h1>
+      <h1>SYMC 마케터 활동일지<span class="year" id="topYear"></span></h1>
       <div class="who">
         <span class="name" id="whoName"></span>
         <span class="role" id="whoRole"></span>
@@ -580,7 +580,8 @@ const $$ = s => Array.from(document.querySelectorAll(s));
 
 let SESSION = null;   // {name, code, role}
 let DATA = [];
-let ROSTER = [];     // members 시트 명단(선생님에게만 내려온다). 코드는 포함되지 않는다
+let ROSTER = [];     // 단원명단 시트 명단(선생님에게만 내려온다). 코드는 포함되지 않는다
+let dashPeriodSet = false;   // 대시보드 기간 기본값을 한 번만 정하기 위한 표시
 let editingId = null;
 
 /* ================= 서버 통신 ================= */
@@ -660,6 +661,7 @@ async function enterApp(animate){
   $("#gate").hidden = true;
   $("#app").hidden = false;
   $("#whoName").textContent = SESSION.name;
+  $("#topYear").textContent = " " + new Date().getFullYear();
   buildTimes();
   if (!$("#f-date").value) $("#f-date").value = new Date().toISOString().slice(0,10);
   refreshFilters(); renderList(); renderStats(); renderFolio(); renderDash();
@@ -964,8 +966,39 @@ function refreshFilters(){
   const months  = [...new Set(base.map(e=>e.date.slice(0,7)))].sort().reverse();
   const types   = [...new Set(base.flatMap(e=>e.types||[]))].sort();
   fill(["#l-member","#s-member","#p-member"], members, "전체");
-  fill(["#l-month","#s-month","#p-month","#d-month"], months, "전체", v=>v.replace("-","년 ")+"월");
+  const years = fillPeriod(["#l-month","#s-month","#p-month","#d-month"], months);
+  /* 해가 쌓이면 '전체 기간' 은 의미가 흐려진다. 대시보드는 가장 최근 활동 연도로 시작한다.
+     한 번만 정해주고, 그 뒤로는 선생님이 고른 값을 건드리지 않는다. */
+  if (!dashPeriodSet && years.length && $("#d-month")){ $("#d-month").value = years[0]; dashPeriodSet = true; }
   fill(["#l-type"], types, "전체");
+}
+
+/* ---------- 기간 선택 ----------
+   해가 쌓이면 월만 늘어놓는 드롭다운은 못 쓰게 된다(3년이면 36줄). 연도로 묶고
+   '연도 전체'를 함께 넣는다. 값은 "2027"(연) 또는 "2027-03"(월)인데, 어느 쪽이든
+   date.startsWith(값) 으로 그대로 걸러지므로 필터 로직은 손댈 필요가 없다. */
+function periodLabel(v){
+  if (!v) return "전체 기간";
+  return v.length === 4 ? v + "년" : v.slice(0,4) + "년 " + v.slice(5) + "월";
+}
+function fillPeriod(sels, months){
+  const byYear = {};
+  months.forEach(m => { const y = m.slice(0,4); (byYear[y] = byYear[y] || []).push(m); });
+  const years = Object.keys(byYear).sort().reverse();
+  const html = '<option value="">전체 기간</option>'
+    + years.map(y =>
+        '<optgroup label="' + y + '년">'
+      + '<option value="' + y + '">' + y + '년 전체</option>'
+      + byYear[y].sort().reverse()
+          .map(m => '<option value="' + m + '">' + periodLabel(m) + '</option>').join("")
+      + '</optgroup>').join("");
+  sels.forEach(s => {
+    const el = $(s); if (!el) return;
+    const cur = el.value;
+    el.innerHTML = html;
+    el.value = cur;              // 목록에 없는 값이면 자동으로 "전체 기간"이 된다
+  });
+  return years;
 }
 function fill(sels, vals, allLabel, fmt){
   sels.forEach(s=>{
@@ -1229,6 +1262,8 @@ function renderFolio(){
   const outs     = [];
   rows.forEach(e=> urlsOf(e).forEach(u=> outs.push({ url:u, e:e })));
   const from = rows[0].date, to = rows[rows.length-1].date;
+  /* 여러 해에 걸쳐 활동했으면 "2026–2027" 로 적는다. 해가 바뀌어도 고칠 곳이 없도록 */
+  const 활동연도 = from.slice(0,4) === to.slice(0,4) ? from.slice(0,4) : from.slice(0,4)+"–"+to.slice(0,4);
 
   /* ---------- 1. 프로필 ---------- */
   const tagHtml =
@@ -1252,7 +1287,7 @@ function renderFolio(){
   const pct = Math.round(checks.filter(c=>c[1]).length / checks.length * 100);
 
   let html = '<div class="pf-profile">'
-    + '<div class="eyebrow">2026 세종청소년음악센터 소리지음 · 마케터 홍보단</div>'
+    + '<div class="eyebrow">'+활동연도+' 세종청소년음악센터 소리지음 · 마케터 홍보단</div>'
     + '<h2>'+esc(who || "마케터")+'</h2>'
     + '<p class="period">'+ymd(from)+' ~ '+ymd(to)+' · 활동 '+rows.length+'건 · 누적 '+(Math.round(hours*10)/10)+'시간</p>'
     + (tagHtml ? '<div class="pf-tags">'+tagHtml+'</div>' : "")
@@ -1421,7 +1456,7 @@ function renderDash(){
   }
   const mo = val("#d-month");
   const rows = all.filter(e => !mo || e.date.startsWith(mo));
-  const 기간 = mo ? mo.replace("-","년 ")+"월" : "전체 기간";
+  const 기간 = periodLabel(mo);
 
   /* ---------- 1. 요약 ---------- */
   let hours=0, made=0, uped=0; const part={infant:0,teen:0,adult:0};
@@ -1444,16 +1479,34 @@ function renderDash(){
     + '</div>';
 
   /* ---------- 1-2. 인원 현황 (연말 결과보고용) ----------
-     학령/성별은 활동이 아니라 사람의 속성이라 members 시트에서 온다.
-     명단이 안 내려오면(=Apps Script 재배포 전) 무엇을 해야 하는지 알려준다. */
-  const mem = roster();
+     학령/성별은 활동이 아니라 사람의 속성이라 단원명단 시트에서 온다.
+     단원은 해마다 바뀐다. 그래서 연도를 고르면 '그 해 활동한 단원' 을 세고,
+     전체 기간이면 현재 명단을 센다. 기준은 화면에 적어둔다. */
+  const memAll = roster();
+  const rosterByName = {}; memAll.forEach(m => rosterByName[m.name] = m);
+  /* 지난 해를 보고 있는가. 그렇다면 지금 명단은 그때의 기수가 아니다. */
+  const 최신연도 = all.map(e => e.date.slice(0,4)).sort().slice(-1)[0] || "";
+  const 현재보기 = !mo || mo.slice(0,4) === 최신연도;
+  let mem = [], memBasis = "", 명단밖 = [];
+  if (memAll.length){
+    if (mo){
+      mem = [...new Set(rows.map(e => String(e.member).trim()))]
+              .map(n => rosterByName[n] || { name:n, role:"student", grade:"", gender:"" });
+      명단밖 = mem.filter(m => !rosterByName[m.name]).map(m => m.name);
+      memBasis = periodLabel(mo) + "에 활동한 단원 기준";
+    } else {
+      mem = memAll;
+      memBasis = "현재 명단 기준";
+    }
+  }
   html += '<div class="pf-sec"><h3>인원 현황</h3>'
-        + '<span>단원 명단 기준 · 연말 결과보고에 그대로 옮겨 적는 표</span></div>';
-  if (!mem.length){
+        + '<span>' + esc(memBasis || "단원 명단 기준") + ' · 연말 결과보고에 그대로 옮겨 적는 표</span></div>';
+  if (!memAll.length){
     html += '<div class="pf-note">단원 명단을 아직 받아오지 못했습니다. '
-          + '<b>구글 스프레드시트의 members 시트에 <code>학령</code>·<code>성별</code> 열을 추가하고, '
-          + 'Apps Script를 새 버전으로 재배포</b>하면 이 표가 채워집니다. '
-          + '(학령은 초 · 중 · 고 · 대 · 학교밖 중에서 적어주세요)</div>';
+          + '<b>단원명단 시트에 <code>학령</code>·<code>성별</code> 열을 채우고, '
+          + 'Apps Script를 새 버전으로 재배포</b>하면 이 표가 채워집니다.</div>';
+  } else if (!mem.length){
+    html += '<div class="pf-note">' + esc(periodLabel(mo)) + '에 활동한 단원이 없습니다.</div>';
   } else {
     const GEN = ["남","여","미입력"];
     const rowsKey = GRADES.concat(["미입력"]);
@@ -1476,8 +1529,25 @@ function renderDash(){
       + '</tbody></table></div>'
       + ((미입력학령 || colTot.미입력)
           ? '<p class="hint" style="margin:12px 0 0">학령 미입력 '+미입력학령+'명 · 성별 미입력 '+colTot.미입력
-            +'명. members 시트에서 채우면 바로 반영됩니다.</p>'
+            +'명. 단원명단 시트에서 채우면 바로 반영됩니다.</p>'
           : '')
+      /* 명단에서 이미 빠진 지난 기수 단원. 학령·성별을 알 수 없는 이유를 밝혀준다 */
+      + (명단밖.length
+          ? '<p class="hint" style="margin:6px 0 0">'+esc(명단밖.join(", "))
+            + ' '+명단밖.length+'명은 현재 단원명단에 없어 학령·성별을 알 수 없습니다. '
+            + '지난 기수 단원을 명단에 남겨두면 그 해 보고서도 그대로 만들 수 있습니다.</p>'
+          : '')
+      /* 등록은 했는데 그 기간에 기록이 없는 단원. 연말 보고 때 놓치기 쉬운 자리라 따로 알려준다 */
+      + (function(){
+          if (!mo || !현재보기) return '';   // 지난 해에는 지금 명단이 기준이 아니다
+          const 활동한 = new Set(mem.map(function(x){ return x.name; }));
+          const 빠진 = memAll.filter(function(x){ return !활동한.has(x.name); })
+                            .map(function(x){ return x.name; });
+          return 빠진.length
+            ? '<p class="hint" style="margin:6px 0 0">명단에는 있지만 '+esc(periodLabel(mo))
+              + '에 기록이 없는 단원 '+빠진.length+'명('+esc(빠진.join(", "))+')은 위 집계에서 빠져 있습니다.</p>'
+            : '';
+        })()
       + '</div></div>';
   }
 
@@ -1486,15 +1556,17 @@ function renderDash(){
      기간을 좁혔다고 연락이 끊긴 단원을 놓치면 안 되기 때문. */
   const last = {};
   all.forEach(e=>{ if(!last[e.member] || e.date > last[e.member]) last[e.member] = e.date; });
-  /* 명단이 있으면 한 건도 안 쓴 단원까지 넣는다. 선생님이 가장 먼저 봐야 할 사람이라서. */
-  const memByName = {}; mem.forEach(m => memByName[m.name] = m);
-  const names = [...new Set(mem.map(m=>m.name).concat(Object.keys(last)))];
+  /* 현재 명단은 한 건도 안 쓴 사람까지 늘 보여준다(선생님이 가장 먼저 챙길 대상).
+     거기에 '고른 기간에 기록이 있는 사람' 을 더한다. 명단에서 빠진 지난 기수 단원도
+     그 해를 고르면 이 표에 나온다. */
+  const memByName = {}; memAll.forEach(m => memByName[m.name] = m);
+  const names = [...new Set((현재보기 ? memAll.map(m=>m.name) : []).concat(rows.map(e=>String(e.member).trim())))];
   const urgency = n => last[n] ? daysSince(last[n]) : Infinity;
   names.sort((a,b)=> urgency(b) - urgency(a) || a.localeCompare(b));
 
   html += '<div class="pf-sec"><h3>단원별 현황</h3><span>수치는 '+esc(기간)+' 기준 · 안 쓴 지는 전체 기록 기준</span></div>'
     + '<div class="card"><div class="card-body"><div class="tablewrap"><table class="mini">'
-    + '<thead><tr><th>단원</th>' + (mem.length ? '<th>학령</th><th>성별</th>' : '')
+    + '<thead><tr><th>단원</th>' + (memAll.length ? '<th>학령</th><th>성별</th>' : '')
     + '<th>최근 활동</th><th>안 쓴 지</th><th>활동</th><th>시간</th>'
     + '<th>제작</th><th>업로드</th><th>만난 참여자</th></tr></thead><tbody>'
     + names.map(n=>{
@@ -1507,7 +1579,7 @@ function renderDash(){
         const dash = v => (!v || v === "미입력") ? "-" : v;
         return '<tr'+(기록없음 ? ' class="dash-none"' : '')+'>'
           + '<td><button class="linklike" data-folio="'+esc(n)+'">'+esc(n)+'</button></td>'
-          + (mem.length
+          + (memAll.length
               ? '<td>'+esc(p ? dash(normGrade(p.grade)) : "-")+'</td>'
                 + '<td>'+esc(p ? dash(normGender(p.gender)) : "-")+'</td>'
               : '')
@@ -1520,7 +1592,7 @@ function renderDash(){
       }).join("")
     + '</tbody></table></div>'
     + '<p class="hint" style="margin:12px 0 0">이름을 누르면 그 단원의 포트폴리오로 이동합니다.'
-    + (mem.length ? '' : ' 한 번도 일지를 쓰지 않은 단원은 명단을 받아오기 전까지 이 표에 나타나지 않습니다.')
+    + (memAll.length ? '' : ' 한 번도 일지를 쓰지 않은 단원은 명단을 받아오기 전까지 이 표에 나타나지 않습니다.')
     + (제외건수 ? ' 선생님이 쓴 기록 '+제외건수+'건은 대시보드 집계에서 빠져 있습니다.' : '')
     + '</p></div></div>';
 

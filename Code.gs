@@ -23,6 +23,10 @@ const SHEET_MEMBERS = 'members';
 const HEADERS = ['id','member','kind','date','start','end','place','types','offline','etc',
                  'topic','duty','make','up','part','content','evaluation','next','savedAt'];
 
+/* members 시트 열 구성. 학령/성별은 사람의 속성이라 활동일지가 아니라 여기에 둔다.
+   학령 값: 초 / 중 / 고 / 대 / 학교밖  (학교를 안 다니는 청소년) */
+const MEMBER_HEADERS = ['이름','코드','역할','학령','성별'];
+
 function setup() {
   getDataSheet();
   const m = getMemberSheet();
@@ -45,12 +49,54 @@ function getMemberSheet() {
   let sheet = ss.getSheetByName(SHEET_MEMBERS);
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_MEMBERS);
-    sheet.appendRow(['이름','코드','역할']);
-    sheet.appendRow(['선생님','1234','admin']);
+    sheet.appendRow(MEMBER_HEADERS);
+    sheet.appendRow(['선생님','1234','admin','','']);
     sheet.setFrozenRows(1);
     sheet.getRange('B:B').setNumberFormat('@');
   }
   return sheet;
+}
+
+
+/**
+ * 이미 쓰고 있는 members 시트에 '학령'/'성별' 열을 붙인다.
+ * 상단 함수 목록에서 한 번만 실행하면 된다. 기존 이름/코드/역할은 건드리지 않는다.
+ */
+function migrateMembers() {
+  const sheet = getMemberSheet();
+  const head = sheet.getRange(1, 1, 1, MEMBER_HEADERS.length).getValues()[0];
+  for (let i = 0; i < MEMBER_HEADERS.length; i++) {
+    if (String(head[i] || '').trim() !== MEMBER_HEADERS[i]) {
+      sheet.getRange(1, i + 1).setValue(MEMBER_HEADERS[i]);
+    }
+  }
+  sheet.setFrozenRows(1);
+  sheet.getRange('B:B').setNumberFormat('@');
+  SpreadsheetApp.getActiveSpreadsheet()
+    .toast('members 시트에 학령/성별 열을 준비했습니다. 학령은 초/중/고/대/학교밖 중에서 적어주세요.');
+}
+
+/**
+ * 단원 명단. 선생님(admin)에게만 내려보낸다.
+ * 코드(로그인 비밀번호) 열은 절대 포함하지 않는다 — 프론트는 공개 소스라서
+ * 한 번이라도 내보내면 그대로 노출된다.
+ */
+function rosterFor(auth) {
+  if (auth.role !== 'admin') return [];
+  const rows = getMemberSheet().getDataRange().getValues();
+  const out = [];
+  for (let i = 1; i < rows.length; i++) {
+    const name = String(rows[i][0] || '').trim();
+    if (!name) continue;
+    const role = String(rows[i][2] || 'student').trim().toLowerCase();
+    out.push({
+      name: name,
+      role: role === 'admin' ? 'admin' : 'student',
+      grade: String(rows[i][3] || '').trim(),
+      gender: String(rows[i][4] || '').trim()
+    });
+  }
+  return out;
 }
 
 /** 이름+코드 확인. 실패 시 null */
@@ -78,7 +124,7 @@ function doPost(e) {
     if (!auth) return json({ ok: false, error: 'auth', message: '이름 또는 코드가 올바르지 않습니다.' });
 
     if (body.action === 'login' || body.action === 'list') {
-      return json({ ok: true, role: auth.role, name: auth.name, entries: entriesFor(auth) });
+      return json({ ok: true, role: auth.role, name: auth.name, entries: entriesFor(auth), members: rosterFor(auth) });
     }
 
     if (body.action === 'save') {
@@ -96,7 +142,7 @@ function doPost(e) {
           sheet.appendRow(entryToRow(en));
         });
       } finally { lock.releaseLock(); }
-      return json({ ok: true, role: auth.role, entries: entriesFor(auth) });
+      return json({ ok: true, role: auth.role, entries: entriesFor(auth), members: rosterFor(auth) });
     }
 
     return json({ ok: false, error: 'unknown_action' });

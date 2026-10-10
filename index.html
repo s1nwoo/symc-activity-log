@@ -163,6 +163,14 @@ table.mini th:first-child,table.mini td:first-child{text-align:left}
 table.mini th{font-size:12px;color:var(--ink-soft);font-weight:600}
 table.mini td{font-variant-numeric:tabular-nums}
 .spark{width:100%;height:120px;display:block}
+.tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tablewrap table.mini{min-width:620px}
+.dash-warn{color:var(--warn);font-weight:700}
+.dash-who{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}
+.dash-who span{font-size:11.5px;background:var(--wash);border-radius:999px;padding:2px 8px;color:var(--ink-soft);white-space:nowrap}
+table.mini td.wide-cell{text-align:left;max-width:260px;color:var(--ink-soft);font-size:12.5px}
+.linklike{border:0;background:none;padding:0;color:var(--brand-deep);font-weight:700;cursor:pointer;font-size:13.5px}
+.linklike:hover{text-decoration:underline}
 
 .pf-head{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:14px}
 .pf-head .eyebrow{font-size:13px;color:var(--brand-deep);font-weight:600}
@@ -201,12 +209,12 @@ table.mini td{font-variant-numeric:tabular-nums}
 .pf-todo li.done::before{content:"●";color:#1E8E4E}
 
 /* 포트폴리오 누적 성과는 6칸을 한 줄에 (통계 탭 .kpis 는 5칸이라 건드리지 않는다) */
-#folioBox .kpis{grid-template-columns:repeat(6,1fr);gap:8px}
-#folioBox .kpi{padding:13px 12px}
-#folioBox .kpi b{font-size:23px}
-#folioBox .kpi span{font-size:12px;line-height:1.35;display:block;word-break:keep-all}
-@media (max-width:860px){ #folioBox .kpis{grid-template-columns:repeat(3,1fr)} }
-@media (max-width:430px){ #folioBox .kpis{grid-template-columns:repeat(2,1fr)} }
+#folioBox .kpis,#dashBox .kpis{grid-template-columns:repeat(6,1fr);gap:8px}
+#folioBox .kpi,#dashBox .kpi{padding:13px 12px}
+#folioBox .kpi b,#dashBox .kpi b{font-size:23px}
+#folioBox .kpi span,#dashBox .kpi span{font-size:12px;line-height:1.35;display:block;word-break:keep-all}
+@media (max-width:860px){ #folioBox .kpis,#dashBox .kpis{grid-template-columns:repeat(3,1fr)} }
+@media (max-width:430px){ #folioBox .kpis,#dashBox .kpis{grid-template-columns:repeat(2,1fr)} }
 
 .pf-sec{margin:24px 0 10px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .pf-sec h3{margin:0;font-size:16px;letter-spacing:-.02em}
@@ -371,7 +379,8 @@ details.pf-entry .body dd a{color:var(--brand-deep);word-break:break-all}
       </div>
     </div>
     <nav role="tablist" aria-label="화면 이동">
-      <button role="tab" data-tab="write" aria-selected="true">일지 작성</button>
+      <button role="tab" data-tab="dash" class="adminOnly" aria-selected="false" hidden>대시보드</button>
+      <button role="tab" data-tab="write" class="studentOnly" aria-selected="true">일지 작성</button>
       <button role="tab" data-tab="list" aria-selected="false">기록</button>
       <button role="tab" data-tab="stats" aria-selected="false">통계</button>
       <button role="tab" data-tab="folio" aria-selected="false">포트폴리오</button>
@@ -495,6 +504,13 @@ details.pf-entry .body dd a{color:var(--brand-deep);word-break:break-all}
       <button class="btn" id="btnReset">새로 쓰기</button>
       <span id="editNote" class="hint" style="margin:0" hidden></span>
     </div>
+  </section>
+
+  <section class="panel" id="tab-dash" role="tabpanel" hidden>
+    <div class="toolbar">
+      <div class="field"><label for="d-month">기간</label><select id="d-month"><option value="">전체</option></select></div>
+    </div>
+    <div id="dashBox"></div>
   </section>
 
   <section class="panel" id="tab-list" role="tabpanel" hidden>
@@ -628,12 +644,10 @@ async function enterApp(animate){
   $("#gate").hidden = true;
   $("#app").hidden = false;
   $("#whoName").textContent = SESSION.name;
-  $("#whoRole").textContent = SESSION.role === "admin" ? "전체 열람" : "본인 기록";
-  $("#whoRole").classList.toggle("admin", SESSION.role === "admin");
-  $$(".adminOnly").forEach(el => el.hidden = (SESSION.role !== "admin"));
   buildTimes();
   if (!$("#f-date").value) $("#f-date").value = new Date().toISOString().slice(0,10);
-  refreshFilters(); renderList(); renderStats(); renderFolio();
+  refreshFilters(); renderList(); renderStats(); renderFolio(); renderDash();
+  applyRole();
 }
 
 /* 로그인창으로 되돌리기 */
@@ -691,11 +705,9 @@ $("#btnLogout").addEventListener("click", ()=>{
     SESSION.role = out.role || SESSION.role;
     DATA = out.entries || [];
     saveSession();                       // 접속할 때마다 기간 연장
-    $$(".adminOnly").forEach(el => el.hidden = (SESSION.role !== "admin"));
-    $("#whoRole").textContent = SESSION.role === "admin" ? "전체 열람" : "본인 기록";
-    $("#whoRole").classList.toggle("admin", SESSION.role === "admin");
     setLoading(false);
-    refreshFilters(); renderList(); renderStats(); renderFolio();
+    refreshFilters(); renderList(); renderStats(); renderFolio(); renderDash();
+    applyRole();
   } catch(err){
     setLoading(false);
     if (err && err.auth) backToGate("등록 정보가 바뀌었습니다. 다시 로그인해주세요.");
@@ -720,6 +732,21 @@ function buildTimes(){
 }
 
 /* ================= 탭 ================= */
+
+/* 역할에 맞춰 탭을 보인다/감춘다.
+   admin(선생님)은 일지를 쓸 일이 없으므로 '일지 작성'을 감추고 대시보드를 첫 화면으로 둔다.
+   단, 기록 탭에서 '수정'을 누르면 loadIntoForm 이 작성 탭을 잠깐 열어준다. */
+function applyRole(){
+  $$(".adminOnly").forEach(el => el.hidden = (SESSION.role !== "admin"));
+  $$(".studentOnly").forEach(el => el.hidden = (SESSION.role === "admin"));
+  $("#whoRole").textContent = SESSION.role === "admin" ? "전체 열람" : "본인 기록";
+  $("#whoRole").classList.toggle("admin", SESSION.role === "admin");
+  const cur = document.querySelector('nav button[aria-selected="true"]');
+  if (!cur || cur.hidden){
+    const first = $$('nav button').filter(b => !b.hidden)[0];
+    if (first) first.click();
+  }
+}
 $$('nav button').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     $$('nav button').forEach(b=>b.setAttribute('aria-selected', String(b===btn)));
@@ -728,6 +755,7 @@ $$('nav button').forEach(btn=>{
     if (btn.dataset.tab==="stats") renderStats();
     if (btn.dataset.tab==="folio") renderFolio();
     if (btn.dataset.tab==="list") renderList();
+    if (btn.dataset.tab==="dash") renderDash();
     window.scrollTo({top:0});
   });
 });
@@ -840,7 +868,8 @@ $("#btnSave").addEventListener("click", async ()=>{
     await saveEntries(owner, bucket);
     editingId = null; $("#editNote").hidden = true;
     resetForm();
-    refreshFilters(); renderList(); renderStats(); renderFolio();
+    refreshFilters(); renderList(); renderStats(); renderFolio(); renderDash();
+    applyRole();
     flash(wasEditing ? "수정했습니다" : "저장했습니다");
   } catch(err){
     DATA = before;
@@ -863,7 +892,7 @@ function flash(msg){
   }, 1100);
 }
 
-$("#btnReset").addEventListener("click", ()=>{ editingId=null; $("#editNote").hidden=true; resetForm(); toast("빈 양식으로 돌아왔습니다"); });
+$("#btnReset").addEventListener("click", ()=>{ editingId=null; $("#editNote").hidden=true; resetForm(); applyRole(); toast("빈 양식으로 돌아왔습니다"); });
 
 function resetForm(){
   ["#f-topic","#f-duty","#f-content","#f-eval","#f-next","#f-offline","#f-etc","#f-place-etc",
@@ -893,7 +922,9 @@ function loadIntoForm(e){
   editingId = e.id;
   $("#editNote").hidden = false;
   $("#editNote").textContent = e.date + (SESSION.role==="admin" && e.member!==SESSION.name ? " · "+e.member : "") + " 일지를 수정 중입니다";
-  $$('nav button')[0].click();
+  const wb = document.querySelector('nav button[data-tab="write"]');
+  wb.hidden = false;            // admin 은 평소 감춰져 있다가 수정할 때만 열린다
+  wb.click();
 }
 
 /* ================= 필터 ================= */
@@ -902,7 +933,7 @@ function refreshFilters(){
   const months  = [...new Set(DATA.map(e=>e.date.slice(0,7)))].sort().reverse();
   const types   = [...new Set(DATA.flatMap(e=>e.types||[]))].sort();
   fill(["#l-member","#s-member","#p-member"], members, "전체");
-  fill(["#l-month","#s-month","#p-month"], months, "전체", v=>v.replace("-","년 ")+"월");
+  fill(["#l-month","#s-month","#p-month","#d-month"], months, "전체", v=>v.replace("-","년 ")+"월");
   fill(["#l-type"], types, "전체");
 }
 function fill(sels, vals, allLabel, fmt){
@@ -916,6 +947,7 @@ function fill(sels, vals, allLabel, fmt){
 ["#l-member","#l-month","#l-type"].forEach(s=>$(s).addEventListener("change", renderList));
 ["#s-member","#s-month"].forEach(s=>$(s).addEventListener("change", renderStats));
 ["#p-member","#p-month"].forEach(s=>$(s).addEventListener("change", renderFolio));
+$("#d-month").addEventListener("change", renderDash);
 
 function pick(m, mo, ty){
   return DATA.filter(e => (!m || e.member===m) && (!mo || e.date.startsWith(mo)) && (!ty || (e.types||[]).includes(ty)))
@@ -962,7 +994,7 @@ function renderList(){
       await saveEntries(e.member, DATA.filter(x=>String(x.member).trim()===String(e.member).trim()));
       toast("삭제했습니다", false, true);
     } catch(err){ DATA = before; toast("삭제에 실패했습니다", true); }
-    refreshFilters(); renderList(); renderStats(); renderFolio();
+    refreshFilters(); renderList(); renderStats(); renderFolio(); renderDash();
   }));
 }
 function val(sel){ const el=$(sel); return (el && !el.closest(".field").hidden) ? el.value : ""; }
@@ -1294,6 +1326,140 @@ window.addEventListener("beforeprint", ()=>{
   document.querySelectorAll("#folioBox details").forEach(d=>d.open = true);
 });
 $("#btnPrint").addEventListener("click", ()=>window.print());
+
+/* =========================================================
+   관리자 대시보드 (admin 전용)
+   선생님이 단원 관리에 쓰는 화면. 누가 안 쓰고 있는지, 날짜별로 누가
+   몇 명 참여했고 현장에서 몇 명을 만났는지, 무엇을 썼는지를 한 화면에서 본다.
+========================================================= */
+function daysSince(d){
+  const t = new Date(); t.setHours(0,0,0,0);
+  const x = new Date(String(d) + "T00:00:00");
+  if (isNaN(x)) return 0;
+  return Math.max(0, Math.round((t - x) / 86400000));
+}
+
+function renderDash(){
+  const box = $("#dashBox");
+  if (!box) return;
+  if (SESSION.role !== "admin"){ box.innerHTML = ""; return; }
+
+  const all = DATA.slice();
+  if (!all.length){
+    box.innerHTML = emptyBox("아직 기록이 없습니다","단원들이 일지를 쓰기 시작하면 이 화면이 채워집니다.");
+    return;
+  }
+  const mo = val("#d-month");
+  const rows = all.filter(e => !mo || e.date.startsWith(mo));
+  const 기간 = mo ? mo.replace("-","년 ")+"월" : "전체 기간";
+
+  /* ---------- 1. 요약 ---------- */
+  let hours=0, made=0, uped=0; const part={infant:0,teen:0,adult:0};
+  rows.forEach(e=>{
+    hours += dur(e); made += sum(e.make); uped += sum(e.up);
+    part.infant += Number(e.part.infant)||0;
+    part.teen   += Number(e.part.teen)||0;
+    part.adult  += Number(e.part.adult)||0;
+  });
+  const 활동단원 = new Set(rows.map(e=>e.member)).size;
+  const 총참여 = part.infant + part.teen + part.adult;
+
+  let html = '<div class="kpis">'
+    + '<div class="kpi accent"><b>'+rows.length+'</b><span>활동 건수</span></div>'
+    + '<div class="kpi"><b>'+활동단원+'</b><span>활동한 단원</span></div>'
+    + '<div class="kpi"><b>'+(Math.round(hours*10)/10)+'</b><span>누적 활동시간</span></div>'
+    + '<div class="kpi"><b>'+made+'</b><span>콘텐츠 제작·기획</span></div>'
+    + '<div class="kpi"><b>'+uped+'</b><span>콘텐츠 업로드</span></div>'
+    + '<div class="kpi"><b>'+총참여+'</b><span>만난 참여자</span></div>'
+    + '</div>';
+
+  /* ---------- 2. 단원별 현황 ----------
+     수치는 선택한 기간 기준, '최근 활동 / 안 쓴 지'는 전체 기록 기준으로 센다.
+     기간을 좁혔다고 해서 연락이 끊긴 단원을 놓치면 안 되기 때문. */
+  const last = {};
+  all.forEach(e=>{ if(!last[e.member] || e.date > last[e.member]) last[e.member] = e.date; });
+  const names = Object.keys(last).sort((a,b)=> daysSince(last[b]) - daysSince(last[a]) || a.localeCompare(b));
+
+  html += '<div class="pf-sec"><h3>단원별 현황</h3><span>수치는 '+esc(기간)+' 기준 · 안 쓴 지는 전체 기록 기준</span></div>'
+    + '<div class="card"><div class="card-body"><div class="tablewrap"><table class="mini">'
+    + '<thead><tr><th>단원</th><th>최근 활동</th><th>안 쓴 지</th><th>활동</th><th>시간</th>'
+    + '<th>제작</th><th>업로드</th><th>만난 참여자</th></tr></thead><tbody>'
+    + names.map(n=>{
+        const r = rows.filter(e=>e.member === n);
+        const h = Math.round(r.reduce((a,e)=>a+dur(e),0)*10)/10;
+        const d = daysSince(last[n]);
+        const 경고 = d >= 14;
+        return '<tr>'
+          + '<td><button class="linklike" data-folio="'+esc(n)+'">'+esc(n)+'</button></td>'
+          + '<td>'+ymd(last[n])+'</td>'
+          + '<td class="'+(경고?"dash-warn":"")+'">'+d+'일'+(경고?' ⚠':'')+'</td>'
+          + '<td>'+r.length+'</td><td>'+h+'</td>'
+          + '<td>'+r.reduce((a,e)=>a+sum(e.make),0)+'</td>'
+          + '<td>'+r.reduce((a,e)=>a+sum(e.up),0)+'</td>'
+          + '<td>'+r.reduce((a,e)=>a+sum(e.part),0)+'</td></tr>';
+      }).join("")
+    + '</tbody></table></div>'
+    + '<p class="hint" style="margin:12px 0 0">이름을 누르면 그 단원의 포트폴리오로 이동합니다. '
+    + '한 번도 일지를 쓰지 않은 단원은 기록이 없어 이 표에 나타나지 않습니다.</p>'
+    + '</div></div>';
+
+  /* ---------- 3. 날짜별 활동 ---------- */
+  const byDate = {};
+  rows.forEach(e=>{ (byDate[e.date] = byDate[e.date] || []).push(e); });
+  const dates = Object.keys(byDate).sort().reverse();
+
+  html += '<div class="pf-sec"><h3>날짜별 활동</h3><span>그날 활동한 단원과 현장에서 만난 참여자</span></div>'
+    + '<div class="card"><div class="card-body"><div class="tablewrap"><table class="mini">'
+    + '<thead><tr><th>날짜</th><th>활동 단원</th><th>단원 수</th><th>활동 주제</th>'
+    + '<th>유아</th><th>청소년</th><th>성인</th><th>합계</th></tr></thead><tbody>'
+    + dates.map(d=>{
+        const r = byDate[d];
+        const who = [...new Set(r.map(e=>e.member))];
+        const i = r.reduce((a,e)=>a+(Number(e.part.infant)||0),0);
+        const t = r.reduce((a,e)=>a+(Number(e.part.teen)||0),0);
+        const u = r.reduce((a,e)=>a+(Number(e.part.adult)||0),0);
+        const topics = [...new Set(r.map(e=>e.topic))].join(", ");
+        return '<tr><td>'+d+'</td>'
+          + '<td><div class="dash-who">'+who.map(n=>'<span>'+esc(n)+'</span>').join("")+'</div></td>'
+          + '<td>'+who.length+'</td>'
+          + '<td class="wide-cell">'+esc(topics)+'</td>'
+          + '<td>'+(i||"-")+'</td><td>'+(t||"-")+'</td><td>'+(u||"-")+'</td>'
+          + '<td><b>'+((i+t+u)||"-")+'</b></td></tr>';
+      }).join("")
+    + '</tbody></table></div></div></div>';
+
+  /* ---------- 4. 단원들이 쓴 내용 ---------- */
+  const recent = rows.slice()
+    .sort((a,b)=> b.date.localeCompare(a.date) || String(b.savedAt).localeCompare(String(a.savedAt)))
+    .slice(0, 12);
+
+  html += '<div class="pf-sec"><h3>단원들이 쓴 내용</h3><span>최근 '+recent.length+'건 · 제목을 누르면 펼쳐집니다</span></div>'
+    + recent.map(e=>{
+        const mkn = sum(e.make), upn = sum(e.up), ptn = sum(e.part);
+        const perf = [mkn?'제작 '+mkn+'건':"", upn?'업로드 '+upn+'건':"", ptn?'참여 '+ptn+'명':""].filter(Boolean).join(" · ");
+        return '<details class="pf-entry">'
+          + '<summary>'
+          +   '<div class="meta">'+e.date+' '+e.start+'~'+e.end+' · '+esc(e.place)+' · <b>'+esc(e.member)+'</b></div>'
+          +   '<h3>'+esc(e.topic)+'</h3>'
+          +   '<div class="one">'+esc(firstLine(e.content))+'</div>'
+          + '</summary>'
+          + '<div class="body"><dl>'
+          +   '<dt>담당업무</dt><dd>'+esc(e.duty)+'</dd>'
+          +   '<dt>활동유형</dt><dd>'+esc((e.types||[]).join(", "))+(e.offline?" — "+esc(e.offline):"")+(e.etc?" — "+esc(e.etc):"")+'</dd>'
+          +   '<dt>활동내용</dt><dd>'+esc(e.content)+'</dd>'
+          +   (perf?'<dt>성과</dt><dd>'+perf+'</dd>':"")
+          +   '<dt>배운 점</dt><dd>'+esc(e.evaluation)+'</dd>'
+          +   '<dt>다음 계획</dt><dd>'+esc(e.next)+'</dd>'
+          + '</dl></div></details>';
+      }).join("");
+
+  box.innerHTML = html;
+
+  box.querySelectorAll("[data-folio]").forEach(b=>b.addEventListener("click", ()=>{
+    $("#p-member").value = b.dataset.folio;
+    document.querySelector('nav button[data-tab="folio"]').click();
+  }));
+}
 
 /* ================= CSV ================= */
 $("#btnCsv").addEventListener("click", ()=>{

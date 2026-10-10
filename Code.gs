@@ -8,10 +8,10 @@
  *    -> 예전 이름(activities / members)의 시트가 있으면 이름만 바꿔줍니다.
  *       데이터는 그대로 남으니 안심하고 실행해도 됩니다.
  *    -> 단원명단의 역할/학령/성별 칸에 드롭다운을 걸어줍니다.
- * 3. 단원명단 시트에 팀원을 등록합니다.
- *    이름   | 코드 | 역할    | 학령 | 성별
- *    정신우 | 1234 | admin   |      |        <- 선생님(전체 열람)
- *    오수민 | 5821 | student | 고   | 여     <- 학생(본인 것만)
+ * 3. 단원명단 시트에 팀원을 등록합니다. 역할·학령·성별은 드롭다운으로 고릅니다.
+ *    이름   | 코드 | 역할   | 학령 | 성별
+ *    정신우 | 1234 | 선생님 |      |        <- 전체 열람
+ *    오수민 | 5821 | 단원   | 고   | 여     <- 본인 것만
  * 4. 배포(Deploy) > 새 배포 > 웹 앱
  *    - 실행 자격: 나(Me)
  *    - 액세스 권한: 모든 사용자(Anyone)
@@ -37,12 +37,58 @@ const MEMBER_HEADERS = ['이름','코드','역할','학령','성별'];
 /* 설정 시트 열 구성. 여기 적힌 값이 단원명단의 드롭다운 목록이 된다.
    값을 더 적으면 드롭다운에 바로 반영된다(코드를 다시 실행할 필요 없음). */
 const CONFIG_COLUMNS = [
-  { title: '역할', values: ['admin','student'] },
+  { title: '역할', values: ['선생님','단원'] },
   { title: '학령', values: ['초','중','고','대','학교밖'] },
   { title: '성별', values: ['남','여'] }
 ];
 /* 단원명단에서 각 설정 열이 걸릴 위치 (1부터). 역할=C, 학령=D, 성별=E */
 const VALIDATION_TARGET = { '역할': 3, '학령': 4, '성별': 5 };
+
+/* 역할은 시트에 한글로 적고, 코드 안에서는 admin/student 로 다룬다.
+   예전에 적어둔 영문 값(admin / student)도 그대로 알아듣는다. */
+const ROLE_ADMIN_LABEL   = '선생님';
+const ROLE_STUDENT_LABEL = '단원';
+
+function normRole(v) {
+  const t = String(v || '').trim();
+  if (t === ROLE_ADMIN_LABEL || t === '관리자' || t === '교사') return 'admin';
+  if (t.toLowerCase() === 'admin' || t.toLowerCase() === 'administrator') return 'admin';
+  return 'student';
+}
+
+/**
+ * 설정 시트의 역할 목록이 예전 영문 기본값 그대로면 한글 표기로 바꿔준다.
+ * 선생님이 직접 손본 흔적이 있으면 건드리지 않는다.
+ */
+function upgradeRoleOptions() {
+  const cfg = getConfigSheet();
+  const n = Math.max(cfg.getLastRow() - 1, 1);
+  const cur = cfg.getRange(2, 1, n, 1).getValues()
+                 .map(function (r) { return String(r[0] || '').trim(); })
+                 .filter(function (v) { return v; });
+  const isOldDefault = cur.length === 2 &&
+                       cur.indexOf('admin') >= 0 && cur.indexOf('student') >= 0;
+  if (!isOldDefault) return;
+  cfg.getRange(2, 1, n, 1).clearContent();
+  cfg.getRange(2, 1, 2, 1).setValues([[ROLE_ADMIN_LABEL], [ROLE_STUDENT_LABEL]]);
+}
+
+/** 단원명단 역할 칸에 남아 있는 영문 값을 한글 표기로 맞춘다 */
+function normalizeRoleColumn() {
+  const sheet = getMemberSheet();
+  const n = sheet.getLastRow() - 1;
+  if (n < 1) return;
+  const range = sheet.getRange(2, VALIDATION_TARGET['역할'], n, 1);
+  const vals = range.getValues();
+  let changed = false;
+  for (let i = 0; i < vals.length; i++) {
+    const cur = String(vals[i][0] || '').trim();
+    if (!cur) continue;
+    const want = normRole(cur) === 'admin' ? ROLE_ADMIN_LABEL : ROLE_STUDENT_LABEL;
+    if (cur !== want) { vals[i][0] = want; changed = true; }
+  }
+  if (changed) range.setValues(vals);
+}
 
 /**
  * 시트를 만들거나 최신 상태로 맞춘다. 몇 번을 실행해도 안전하다.
@@ -52,6 +98,8 @@ function setup() {
   getDataSheet();
   ensureMemberColumns();
   getConfigSheet();
+  upgradeRoleOptions();
+  normalizeRoleColumn();
   applyValidation();
   SpreadsheetApp.getActiveSpreadsheet()
     .toast('설정 완료. 단원명단 시트의 역할·학령·성별 칸이 드롭다운으로 바뀌었습니다.');
@@ -163,10 +211,9 @@ function rosterFor(auth) {
   for (let i = 1; i < rows.length; i++) {
     const name = String(rows[i][0] || '').trim();
     if (!name) continue;
-    const role = String(rows[i][2] || 'student').trim().toLowerCase();
     out.push({
       name: name,
-      role: role === 'admin' ? 'admin' : 'student',
+      role: normRole(rows[i][2]),
       grade: String(rows[i][3] || '').trim(),
       gender: String(rows[i][4] || '').trim()
     });
@@ -185,8 +232,7 @@ function authenticate(name, code) {
     const rc = String(rows[i][1]).trim();
     if (!rn) continue;
     if (rn === n && rc === c) {
-      const role = String(rows[i][2] || 'student').trim().toLowerCase();
-      return { name: rn, role: role === 'admin' ? 'admin' : 'student' };
+      return { name: rn, role: normRole(rows[i][2]) };
     }
   }
   return null;

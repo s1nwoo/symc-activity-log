@@ -269,6 +269,24 @@ details.pf-entry summary .one{font-size:13.5px;color:var(--ink-soft);
 details.pf-entry .body{margin:0 16px;padding:14px 0 16px;border-top:1px solid var(--line)}
 details.pf-entry .body dd a{color:var(--brand-deep);word-break:break-all}
 
+/* ---------- 보고서 (통계 / 선생님용 포트폴리오) ---------- */
+.report-head{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);
+  padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow)}
+.report-head .eyebrow{font-size:12.5px;color:var(--brand-deep);font-weight:700}
+.report-head h2{margin:6px 0 4px;font-size:22px;letter-spacing:-.03em}
+.report-head p{margin:0;font-size:13px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.rp-member{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);
+  padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow)}
+.rp-profile h3{margin:0 0 4px;font-size:20px;letter-spacing:-.03em}
+.rp-profile p{margin:0;font-size:13px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.rp-chart{margin:14px 0 4px}
+.rp-chart .spark{height:64px}
+.rp-list{list-style:none;margin:14px 0 0;padding:0;border-top:1px solid var(--line)}
+.rp-list li{padding:10px 0;border-bottom:1px solid var(--line)}
+.rp-list li:last-child{border-bottom:0}
+.rp-list .when{font-size:12px;color:var(--ink-soft);font-weight:600;font-variant-numeric:tabular-nums}
+.rp-list .what{font-size:14px;margin-top:3px;white-space:pre-wrap;line-height:1.6}
+
 .pf-note{font-size:12.5px;color:var(--ink-soft);background:var(--paper);
   border:1px dashed var(--line);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px}
 .pf-pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
@@ -304,6 +322,29 @@ details.pf-entry .body dd a{color:var(--brand-deep);word-break:break-all}
   main{padding:0;max-width:none}
   .card,.pf-entry,.pf-head,.pf-profile,.pf-proj,.pf-out,.pf-growth,.kpi{box-shadow:none;border-color:#ccc;break-inside:avoid}
   .pf-note,.pf-pick{display:none!important}
+  /* 보고서: 단원마다 새 쪽에서 시작한다. 첫 단원만 머리글 바로 아래에서 */
+  .report-head,.rp-member{box-shadow:none;border:0;border-radius:0;padding:0;margin:0 0 12px}
+  .rp-member{break-before:page}
+  .report-head + .rp-member{break-before:auto}
+  .rp-profile,.rp-chart{break-after:avoid}
+  .rp-list li{break-inside:avoid}
+  /* 통계 보고서: 요약 숫자 5개를 한 줄로 */
+  #statsBox .kpis{grid-template-columns:repeat(5,1fr);gap:8px}
+  #statsBox .kpi{padding:10px 12px}
+  #statsBox .kpi b{font-size:18pt}
+  #statsBox .kpi span{font-size:8pt;word-break:keep-all}
+  /* 인당 1~2쪽에 맞추려고 인쇄할 때만 촘촘하게 (화면은 읽기 편한 간격 그대로) */
+  .rp-profile h3{font-size:16pt}
+  .rp-profile p{font-size:9pt}
+  .rp-member .pf-tags{margin-top:6px;gap:4px}
+  .rp-member .pf-tag{font-size:8pt;padding:1px 7px}
+  .rp-chart{margin:8px 0 0}
+  .rp-chart .spark{height:42px}
+  .rp-chart .hint{font-size:7.5pt}
+  .rp-list{margin-top:8px}
+  .rp-list li{padding:4px 0}
+  .rp-list .when{font-size:8pt}
+  .rp-list .what{font-size:9.5pt;line-height:1.45;margin-top:1px}
   .vol-card,.qual-head,table.mini tr{break-inside:avoid}
   .qual-head,.pf-sec{break-after:avoid}
   details.pf-entry summary::after{display:none}
@@ -540,12 +581,15 @@ details.pf-entry .body dd a{color:var(--brand-deep);word-break:break-all}
     <div class="toolbar no-print">
       <div class="field adminOnly" hidden><label for="s-member">작성자</label><select id="s-member"><option value="">전체</option></select></div>
       <div class="field"><label for="s-month">기간</label><select id="s-month"><option value="">전체</option></select></div>
+      <button class="btn primary" id="btnStatsPrint">PDF로 저장 / 인쇄</button>
     </div>
     <div id="statsBox"></div>
   </section>
 
   <section class="panel" id="tab-folio" role="tabpanel" hidden>
     <div class="toolbar no-print">
+      <div class="field adminOnly" hidden><label for="p-view">보기</label><select id="p-view">
+        <option value="report">보고서 (느낀점)</option><option value="personal">개인 포트폴리오</option></select></div>
       <div class="field adminOnly" hidden><label for="p-member">작성자</label><select id="p-member"><option value="">전체</option></select></div>
       <div class="field"><label for="p-month">기간</label><select id="p-month"><option value="">전체</option></select></div>
       <button class="btn primary" id="btnPrint">PDF로 저장 / 인쇄</button>
@@ -581,7 +625,7 @@ const $$ = s => Array.from(document.querySelectorAll(s));
 let SESSION = null;   // {name, code, role}
 let DATA = [];
 let ROSTER = [];     // 단원명단 시트 명단(선생님에게만 내려온다). 코드는 포함되지 않는다
-let dashPeriodSet = false;   // 대시보드 기간 기본값을 한 번만 정하기 위한 표시
+let periodDefaultSet = false;   // 선생님 화면 기간 기본값을 한 번만 정하기 위한 표시
 let editingId = null;
 
 /* ================= 서버 통신 ================= */
@@ -670,7 +714,7 @@ async function enterApp(animate){
 
 /* 로그인창으로 되돌리기 */
 function backToGate(msg){
-  clearSession(); SESSION = null; DATA = []; ROSTER = [];
+  clearSession(); SESSION = null; DATA = []; ROSTER = []; periodDefaultSet = false;
   $("#app").hidden = true;
   $("#gate").hidden = false;
   if (msg) gateError(msg); else $("#gateMsg").classList.remove("show");
@@ -967,9 +1011,13 @@ function refreshFilters(){
   const types   = [...new Set(base.flatMap(e=>e.types||[]))].sort();
   fill(["#l-member","#s-member","#p-member"], members, "전체");
   const years = fillPeriod(["#l-month","#s-month","#p-month","#d-month"], months);
-  /* 해가 쌓이면 '전체 기간' 은 의미가 흐려진다. 대시보드는 가장 최근 활동 연도로 시작한다.
-     한 번만 정해주고, 그 뒤로는 선생님이 고른 값을 건드리지 않는다. */
-  if (!dashPeriodSet && years.length && $("#d-month")){ $("#d-month").value = years[0]; dashPeriodSet = true; }
+  /* 해가 쌓이면 '전체 기간' 은 의미가 흐려진다. 선생님 화면의 대시보드·통계·포트폴리오는
+     가장 최근 활동 연도로 시작한다(보고서는 연 단위로 낸다). 한 번만 정해주고, 그 뒤로는
+     고른 값을 건드리지 않는다. 학생은 자기 기록 전체를 보는 게 자연스러워 그대로 둔다. */
+  if (!periodDefaultSet && years.length && SESSION && SESSION.role === "admin"){
+    ["#d-month","#s-month","#p-month"].forEach(sel => { if ($(sel)) $(sel).value = years[0]; });
+    periodDefaultSet = true;
+  }
   fill(["#l-type"], types, "전체");
 }
 
@@ -981,6 +1029,25 @@ function periodLabel(v){
   if (!v) return "전체 기간";
   return v.length === 4 ? v + "년" : v.slice(0,4) + "년 " + v.slice(5) + "월";
 }
+/* 보고서 제목에 쓸 기간. 기간을 안 골랐으면 실제 기록의 연도 범위로 적는다 */
+function reportPeriod(mo, rows){
+  if (mo) return periodLabel(mo);
+  const ys = rows.map(e => e.date.slice(0,4)).sort();
+  if (!ys.length) return "전체 기간";
+  return ys[0] === ys[ys.length-1] ? ys[0] + "년" : ys[0] + "–" + ys[ys.length-1] + "년";
+}
+function todayDots(){
+  const d = new Date(), p = n => String(n).padStart(2,"0");
+  return d.getFullYear() + "." + p(d.getMonth()+1) + "." + p(d.getDate());
+}
+/* 화면에서도 보이고, PDF 로 받으면 첫 쪽 맨 위에 오는 제목 */
+function reportHead(title, meta){
+  return '<div class="report-head">'
+    + '<div class="eyebrow">세종청소년음악센터 소리지음 · 마케터 홍보단</div>'
+    + '<h2>' + esc(title) + '</h2>'
+    + '<p>' + meta.filter(Boolean).map(esc).join(" · ") + '</p></div>';
+}
+
 function fillPeriod(sels, months){
   const byYear = {};
   months.forEach(m => { const y = m.slice(0,4); (byYear[y] = byYear[y] || []).push(m); });
@@ -1074,25 +1141,30 @@ function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;
 
 /* ================= 통계 ================= */
 function renderStats(){
-  const rows = pick(val("#s-member"), val("#s-month"), "");
+  const sm = val("#s-member"), mo = val("#s-month");
+  const rows = pick(sm, mo, "");
   const box = $("#statsBox");
   if(!rows.length){ box.innerHTML = emptyBox("집계할 기록이 없습니다","일지가 쌓이면 이 화면이 자동으로 채워집니다."); return; }
 
   const platforms=[["tiktok","틱톡"],["insta","인스타"],["youtube","유튜브"],["blog","블로그"]];
   const mk={}, up={}; platforms.forEach(p=>{ mk[p[0]]=0; up[p[0]]=0; });
   let part={infant:0,teen:0,adult:0}, hours=0;
-  const byType={}, byMember={}, byMonth={};
+  const byType={}, byMonth={};
   rows.forEach(e=>{
     platforms.forEach(p=>{ mk[p[0]]+=Number(e.make[p[0]])||0; up[p[0]]+=Number(e.up[p[0]])||0; });
     part.infant+=Number(e.part.infant)||0; part.teen+=Number(e.part.teen)||0; part.adult+=Number(e.part.adult)||0;
     hours += dur(e);
     (e.types||[]).forEach(t=> byType[t]=(byType[t]||0)+1);
-    byMember[e.member]=(byMember[e.member]||0)+1;
     byMonth[e.date.slice(0,7)]=(byMonth[e.date.slice(0,7)]||0)+1;
   });
   const totalMake=sum(mk), totalUp=sum(up), totalPart=sum(part);
 
-  let html = '<div class="kpis">'
+  const 누구 = SESSION.role !== "admin" ? SESSION.name
+            : sm ? sm
+            : "단원 " + new Set(rows.map(e=>e.member)).size + "명";
+  let html = reportHead(reportPeriod(mo, rows) + " SYMC 마케터 활동 실적",
+                        ["집계 기간 " + periodLabel(mo), 누구, "출력일 " + todayDots()])
+    + '<div class="kpis">'
     + '<div class="kpi accent"><b>'+rows.length+'</b><span>총 활동 건수</span></div>'
     + '<div class="kpi"><b>'+(Math.round(hours*10)/10)+'</b><span>누적 활동시간</span></div>'
     + '<div class="kpi"><b>'+totalMake+'</b><span>콘텐츠 제작·기획</span></div>'
@@ -1117,10 +1189,6 @@ function renderStats(){
     +   '<div class="card"><h2>활동유형 분포</h2><div class="card-body">'+bars(Object.entries(byType).sort((a,b)=>b[1]-a[1]), "", "건")+'</div></div>'
     +   '<div class="card"><h2>참여 대상</h2><div class="card-body">'+bars([["유아",part.infant],["청소년",part.teen],["성인",part.adult]], "c", "명")+'</div></div>'
     + '</div>';
-  if (SESSION.role === "admin") {
-    html += '<div class="card"><h2>멤버별 활동</h2><div class="card-body">'
-          + bars(Object.entries(byMember).sort((a,b)=>b[1]-a[1]), "", "건") + '</div></div>';
-  }
   box.innerHTML = html;
 }
 
@@ -1224,7 +1292,67 @@ function firstLine(s){
 }
 function ymd(d){ return String(d||"").slice(2).replace(/-/g,"."); }
 
+/* 활동유형 횟수 + 본문에서 찾은 도구. 학생 포트폴리오와 선생님 보고서가 같이 쓴다 */
+function folioTags(rows){
+  const c = {};
+  rows.forEach(e => (e.types||[]).forEach(t => c[t] = (c[t]||0) + 1));
+  const html = Object.entries(c).sort((a,b)=>b[1]-a[1])
+      .map(p=>'<span class="pf-tag">#'+esc(p[0].replace(/[\s\/]/g,""))+' '+p[1]+'회</span>').join("")
+    + toolsOf(rows).map(p=>'<span class="pf-tag tool">#'+esc(p[0])+'</span>').join("");
+  return html ? '<div class="pf-tags">'+html+'</div>' : "";
+}
+
+/* =========================================================
+   선생님용 포트폴리오 보고서
+   연말 결과보고에 붙이는 '느낀점·배운 점' 문서. 전 인원을 한 번에 보고 한 번에 받는다.
+   인당 1~2쪽에 맞추려고 활동마다 '날짜·주제 + 느낀점' 만 남긴다.
+   (수치는 통계탭, 활동내용·성과는 대시보드와 기록탭이 맡는다)
+   PDF 로 받으면 단원마다 새 쪽에서 시작한다.
+========================================================= */
+function renderFolioReport(){
+  const box = $("#folioBox");
+  const m = val("#p-member"), mo = val("#p-month");
+  const rows = pick(m, mo, "").slice().sort((a,b)=>a.date.localeCompare(b.date));
+  if (!rows.length){
+    box.innerHTML = emptyBox("보여줄 활동이 없습니다","고른 기간에 단원들이 남긴 기록이 없습니다.");
+    return;
+  }
+  const by = {};
+  rows.forEach(e => { (by[e.member] = by[e.member] || []).push(e); });
+  const names = Object.keys(by).sort((a,b)=>a.localeCompare(b));
+
+  let html = reportHead(reportPeriod(mo, rows) + " SYMC 마케터 활동 포트폴리오",
+    ["느낀점 · 배운 점", "집계 기간 " + periodLabel(mo),
+     "단원 " + names.length + "명 · 활동 " + rows.length + "건", "출력일 " + todayDots()]);
+
+  html += names.map(n => {
+    const r = by[n];
+    const hours = Math.round(r.reduce((a,e)=>a+dur(e),0)*10)/10;
+    const byMonth = {};
+    r.forEach(e => { const k = e.date.slice(0,7); byMonth[k] = (byMonth[k]||0) + 1; });
+    const cum = {}; let run = 0;
+    Object.keys(byMonth).sort().forEach(k => { run += byMonth[k]; cum[k] = run; });
+    return '<section class="rp-member">'
+      + '<div class="rp-profile">'
+      +   '<h3>' + esc(n) + '</h3>'
+      +   '<p>' + ymd(r[0].date) + ' ~ ' + ymd(r[r.length-1].date)
+      +       ' · 활동 ' + r.length + '건 · 누적 ' + hours + '시간</p>'
+      +   folioTags(r)
+      + '</div>'
+      + '<div class="rp-chart">' + monthChart(cum)
+      +   '<p class="hint" style="margin:6px 0 0">월별 누적 활동 건수</p></div>'
+      + '<ol class="rp-list">'
+      +   r.map(e => '<li><div class="when">' + dateLabel(e.date) + ' · ' + esc(e.topic) + '</div>'
+                    + '<div class="what">' + esc(e.evaluation) + '</div></li>').join("")
+      + '</ol></section>';
+  }).join("");
+
+  box.innerHTML = html;
+}
+
 function renderFolio(){
+  /* 선생님은 기본으로 보고서를 본다. '개인 포트폴리오' 를 고르면 학생이 보는 화면 그대로 */
+  if (SESSION.role === "admin" && val("#p-view") !== "personal") return renderFolioReport();
   const box = $("#folioBox");
   const m = val("#p-member"), mo = val("#p-month");
 
@@ -1258,7 +1386,6 @@ function renderFolio(){
   });
   const clusters = groupProjects(rows);
   const projects = clusters.filter(c=>c.rows.length >= 2);
-  const tools    = toolsOf(rows);
   const outs     = [];
   rows.forEach(e=> urlsOf(e).forEach(u=> outs.push({ url:u, e:e })));
   const from = rows[0].date, to = rows[rows.length-1].date;
@@ -1266,10 +1393,6 @@ function renderFolio(){
   const 활동연도 = from.slice(0,4) === to.slice(0,4) ? from.slice(0,4) : from.slice(0,4)+"–"+to.slice(0,4);
 
   /* ---------- 1. 프로필 ---------- */
-  const tagHtml =
-      Object.entries(typeCount).sort((a,b)=>b[1]-a[1])
-        .map(p=>'<span class="pf-tag">#'+esc(p[0].replace(/[\s\/]/g,""))+' '+p[1]+'회</span>').join("")
-    + tools.map(p=>'<span class="pf-tag tool">#'+esc(p[0])+'</span>').join("");
 
   const deep = rows.filter(e=>String(e.evaluation||"").trim().length >= 40).length;
   const checks = [
@@ -1290,7 +1413,7 @@ function renderFolio(){
     + '<div class="eyebrow">'+활동연도+' 세종청소년음악센터 소리지음 · 마케터 홍보단</div>'
     + '<h2>'+esc(who || "마케터")+'</h2>'
     + '<p class="period">'+ymd(from)+' ~ '+ymd(to)+' · 활동 '+rows.length+'건 · 누적 '+(Math.round(hours*10)/10)+'시간</p>'
-    + (tagHtml ? '<div class="pf-tags">'+tagHtml+'</div>' : "")
+    + folioTags(rows)
     + '<div class="pf-gauge no-print">'
     +   '<div class="pf-gauge-head"><span>포트폴리오 완성도</span><b>'+pct+'%</b></div>'
     +   '<span class="track" style="display:block"><span class="fill" style="width:'+pct+'%"></span></span>'
@@ -1392,6 +1515,8 @@ window.addEventListener("beforeprint", ()=>{
   document.querySelectorAll("details").forEach(d=>d.open = true);
 });
 $("#btnPrint").addEventListener("click", ()=>window.print());
+$("#btnStatsPrint").addEventListener("click", ()=>window.print());
+$("#p-view").addEventListener("change", renderFolio);
 $("#btnDashPrint").addEventListener("click", ()=>window.print());
 /* =========================================================
    관리자 대시보드 (admin 전용)

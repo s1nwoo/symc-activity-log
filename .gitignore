@@ -1,0 +1,5 @@
+# clasp 로그인 정보 — 구글 계정 열쇠다. 절대 올리지 않는다(GitHub Secret 으로만 쓴다)
+.clasprc.json
+**/.clasprc.json
+
+node_modules/

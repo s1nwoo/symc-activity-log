@@ -1,24 +1,23 @@
 /**
  * SYMC 마케터 활동일지 - 구글 시트 백엔드
  *
- * [설정 / 업데이트]
- * 1. 이 코드를 붙여넣고 저장합니다.
- * 2. 상단 함수 목록에서 setup 을 선택하고 실행(▶)합니다.
- *    -> 활동일지 / 단원명단 / 설정  세 개의 시트를 만들거나 최신 상태로 맞춥니다.
- *    -> 예전 이름(activities / members)의 시트가 있으면 이름만 바꿔줍니다.
- *       데이터는 그대로 남으니 안심하고 실행해도 됩니다.
- *    -> 단원명단의 역할/학령/성별 칸에 드롭다운을 걸어줍니다.
- * 3. 단원명단 시트에 팀원을 등록합니다. 역할·학령·성별은 드롭다운으로 고릅니다.
- *    이름   | 코드 | 역할   | 학령 | 성별
- *    정신우 | 1234 | 선생님 |      |        <- 전체 열람
- *    오수민 | 5821 | 단원   | 고   | 여     <- 본인 것만
- * 4. 배포(Deploy) > 새 배포 > 웹 앱
- *    - 실행 자격: 나(Me)
- *    - 액세스 권한: 모든 사용자(Anyone)
- * 5. 나온 주소를 index.html 의 API_ENDPOINT 에 붙여넣습니다.
+ * [배포] 손으로 하지 않는다.
+ *   이 파일을 고쳐 main 브랜치에 push 하면 GitHub Actions 가
+ *   (.github/workflows/deploy-apps-script.yml)
+ *     1) clasp push            — 이 코드를 Apps Script 로 올리고
+ *     2) clasp update-deployment — 기존 웹 앱 배포를 새 버전으로 바꾼다(주소 그대로)
+ *     3) 상태 확인              — 새 코드가 실제로 도는지 build 값으로 확인
+ *   시트 구조(열·드롭다운)는 배포 후 첫 요청에서 자동으로 맞춰진다 → SCHEMA_VERSION 참고.
+ *   ※ Apps Script 편집기에서 직접 고치지 말 것. 다음 배포 때 이 파일로 덮어써진다.
  *
- * [주의] 코드를 수정한 뒤에는 배포 > 배포 관리 > 수정 > 새 버전으로 다시 배포해야
- *        변경 내용이 반영됩니다. '새 배포'를 누르면 주소가 바뀌니 쓰지 마세요.
+ * [시트] 활동일지 / 단원명단 / 설정
+ *   단원명단: 이름 | 코드 | 역할 | 학령 | 성별   (역할·학령·성별은 설정 시트의 드롭다운)
+ *   정신우 | 1234 | 선생님 |      |        <- 전체 열람
+ *   오수민 | 5821 | 단원   | 고   | 여     <- 본인 것만
+ *
+ * [처음부터 새로 만들 때만] 스프레드시트 > 확장 프로그램 > Apps Script 에 붙여넣고 setup 실행,
+ *   배포 > 새 배포 > 웹 앱(실행 자격: 나 / 액세스: 모든 사용자). 나온 주소를 index.html 의
+ *   API_ENDPOINT 에 넣는다. 그 뒤로는 위의 자동 배포를 쓴다.
  */
 
 const SHEET_DATA    = '활동일지';
@@ -91,16 +90,48 @@ function normalizeRoleColumn() {
 }
 
 /**
+ * 시트 구조 버전. 시트의 열·드롭다운 구성을 바꿀 때마다 이 숫자를 1 올린다.
+ * 배포 후 첫 요청에서 저장된 버전과 다르면 setupSheets() 를 한 번 자동으로 실행하므로,
+ * 더 이상 Apps Script 편집기에서 setup 을 손으로 돌릴 필요가 없다.
+ */
+const SCHEMA_VERSION = 1;
+
+/* 배포 표시. GitHub Actions 가 배포할 때 커밋 번호로 바꿔 넣는다(저장소에는 'local' 로 남는다). */
+const BUILD = 'local';
+
+/** 매 요청 맨 앞에서 부른다. 평소에는 속성 하나 읽고 끝나서 거의 비용이 없다. */
+function ensureSchema() {
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty('schemaVersion') === String(SCHEMA_VERSION)) return;
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    /* 기다리는 사이 다른 요청이 먼저 끝냈을 수 있다 */
+    if (props.getProperty('schemaVersion') === String(SCHEMA_VERSION)) return;
+    setupSheets();
+    props.setProperty('schemaVersion', String(SCHEMA_VERSION));
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
  * 시트를 만들거나 최신 상태로 맞춘다. 몇 번을 실행해도 안전하다.
  * 지우는 동작은 하나도 없다.
  */
-function setup() {
+function setupSheets() {
   getDataSheet();
   ensureMemberColumns();
   getConfigSheet();
   upgradeRoleOptions();
   normalizeRoleColumn();
   applyValidation();
+}
+
+/** 편집기에서 손으로 돌리고 싶을 때용. 자동 갱신과 같은 일을 하고 알림을 띄운다. */
+function setup() {
+  setupSheets();
+  PropertiesService.getScriptProperties().setProperty('schemaVersion', String(SCHEMA_VERSION));
   SpreadsheetApp.getActiveSpreadsheet()
     .toast('설정 완료. 단원명단 시트의 역할·학령·성별 칸이 드롭다운으로 바뀌었습니다.');
 }
@@ -240,6 +271,7 @@ function authenticate(name, code) {
 
 function doPost(e) {
   try {
+    ensureSchema();      // 배포 직후 첫 요청이면 시트 구조를 맞춘다
     const body = JSON.parse(e.postData.contents);
     const auth = authenticate(body.name, body.code);
     if (!auth) return json({ ok: false, error: 'auth', message: '이름 또는 코드가 올바르지 않습니다.' });
@@ -272,8 +304,18 @@ function doPost(e) {
   }
 }
 
+/**
+ * 상태 확인용. GitHub Actions 가 배포 직후 이 주소를 불러
+ *  (1) 새 코드가 실제로 돌고 있는지(build), (2) 시트 구조가 맞춰졌는지(schema) 확인한다.
+ * 배포 직후 시트 구조 갱신도 여기서 미리 끝내 두어, 첫 학생 요청이 느려지지 않게 한다.
+ */
 function doGet(e) {
-  return json({ ok: true, message: 'SYMC 활동일지 서버가 동작 중입니다.' });
+  try {
+    ensureSchema();
+    return json({ ok: true, message: 'SYMC 활동일지 서버가 동작 중입니다.', build: BUILD, schema: SCHEMA_VERSION });
+  } catch (err) {
+    return json({ ok: false, error: 'server', message: String(err), build: BUILD });
+  }
 }
 
 function entriesFor(auth) {

@@ -1,0 +1,104 @@
+# Apps Script(백엔드) 자동 배포
+#
+# apps-script/ 폴더가 바뀐 채로 main 에 push 되면:
+#   1) 코드를 Apps Script 로 올리고(clasp push)
+#   2) 기존 웹 앱 배포를 새 버전으로 바꾼다(clasp update-deployment) — 주소는 그대로
+#   3) 웹 앱 주소를 직접 불러 새 코드가 실제로 돌고 있는지 확인한다
+#
+# 필요한 것: 저장소 Secret `CLASPRC_JSON` (clasp login 으로 생긴 ~/.clasprc.json 내용 전체)
+# 수동 실행: GitHub > Actions > "Apps Script 배포" > Run workflow
+#
+# 화면(index.html)은 GitHub Pages 가 따로 배포하므로 여기서 다루지 않는다.
+
+name: Apps Script 배포
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps-script/**"
+      - ".clasp.json"
+      - ".github/workflows/deploy-apps-script.yml"
+  workflow_dispatch:
+
+# 배포가 겹치면 뒤에 온 것을 기다리게 한다(취소하지 않는다)
+concurrency:
+  group: apps-script-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: clasp 설치
+        run: npm install --global @google/clasp@3
+
+      - name: 로그인 정보 복원
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        run: |
+          if [ -z "$CLASPRC_JSON" ]; then
+            echo "::error::저장소 Secret CLASPRC_JSON 이 없습니다. PROJECT_NOTES 의 '자동 배포' 절을 참고하세요."
+            exit 1
+          fi
+          printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
+          chmod 600 "$HOME/.clasprc.json"
+
+      # 배포 ID 는 index.html 의 API_ENDPOINT 에서 읽는다.
+      # 따로 적어두면 둘이 어긋날 수 있어서, 화면이 실제로 부르는 주소 하나만 믿는다.
+      - name: 배포 ID 읽기
+        run: |
+          ID=$(grep -oP 'script\.google\.com/macros/s/\K[^/"]+(?=/exec)' index.html | head -n 1)
+          if [ -z "$ID" ]; then
+            echo "::error::index.html 에서 API_ENDPOINT 를 찾지 못했습니다."
+            exit 1
+          fi
+          echo "DEPLOYMENT_ID=$ID" >> "$GITHUB_ENV"
+          echo "WEBAPP_URL=https://script.google.com/macros/s/$ID/exec" >> "$GITHUB_ENV"
+          echo "BUILD=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      # 저장소의 Code.gs 는 BUILD = 'local' 로 남겨두고, 올리는 사본에만 커밋 번호를 새긴다.
+      - name: 배포 표시 새기기
+        run: |
+          sed -i "s/^const BUILD = 'local';$/const BUILD = '${BUILD}';/" apps-script/Code.gs
+          grep -q "^const BUILD = '${BUILD}';$" apps-script/Code.gs || {
+            echo "::error::Code.gs 에서 BUILD 줄을 찾지 못했습니다."
+            exit 1
+          }
+
+      - name: 코드 올리기 (clasp push)
+        run: clasp push --force
+
+      - name: 웹 앱 배포 갱신 (주소 유지)
+        run: clasp update-deployment "$DEPLOYMENT_ID" --description "github ${BUILD}"
+
+      # Apps Script 는 응답 전에 다른 주소로 한 번 넘겨주므로 -L 로 따라간다.
+      # 새 버전이 퍼지는 데 잠깐 걸릴 수 있어 몇 번 다시 묻는다.
+      - name: 상태 확인
+        run: |
+          for i in 1 2 3 4 5 6; do
+            BODY=$(curl -sSL --max-time 60 "$WEBAPP_URL" || true)
+            echo "[$i] $BODY"
+            if echo "$BODY" | grep -q "\"build\":\"${BUILD}\""; then
+              if echo "$BODY" | grep -q '"ok":true'; then
+                echo "배포 확인: build=${BUILD}"
+                exit 0
+              fi
+              echo "::error::새 코드는 올라갔지만 서버가 오류를 냈습니다."
+              exit 1
+            fi
+            sleep 10
+          done
+          echo "::error::웹 앱이 새 버전(build=${BUILD})으로 응답하지 않습니다."
+          exit 1

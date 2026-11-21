@@ -279,13 +279,21 @@ details.pf-entry .body dd a{color:var(--brand-deep);word-break:break-all}
   padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow)}
 .rp-profile h3{margin:0 0 4px;font-size:20px;letter-spacing:-.03em}
 .rp-profile p{margin:0;font-size:13px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
-.rp-chart{margin:14px 0 4px}
-.rp-chart .spark{height:64px}
-.rp-list{list-style:none;margin:14px 0 0;padding:0;border-top:1px solid var(--line)}
-.rp-list li{padding:10px 0;border-bottom:1px solid var(--line)}
-.rp-list li:last-child{border-bottom:0}
-.rp-list .when{font-size:12px;color:var(--ink-soft);font-weight:600;font-variant-numeric:tabular-nums}
-.rp-list .what{font-size:14px;margin-top:3px;white-space:pre-wrap;line-height:1.6}
+
+/* 통계: 게시물별 표 */
+table.mini.ct-table td:first-child{max-width:340px;white-space:normal}
+table.mini.ct-table td:first-child a{color:var(--ink);text-decoration:none;font-weight:600}
+table.mini.ct-table td:first-child a:hover{color:var(--brand-deep);text-decoration:underline}
+table.mini.ct-table .posted{display:block;font-size:11.5px;color:var(--ink-soft);font-weight:400}
+table.mini.ct-table td,table.mini.ct-table th{white-space:nowrap}
+/* 통계: 오프라인 활동(행사별 참여 인원) */
+.off-ev + .off-ev{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.off-name{font-size:16px;font-weight:700;letter-spacing:-.02em}
+.off-name span{font-size:12px;font-weight:500;color:var(--ink-soft);margin-left:6px}
+.off-sub{font-size:12px;color:var(--ink-soft);margin:6px 0 8px}
+/* 포트폴리오 보고서: 성장기록 */
+.rp-eyebrow{font-size:12.5px;color:var(--brand-deep);font-weight:700;margin-bottom:6px}
+.rp-label{font-size:13px;font-weight:700;margin:14px 0 10px}
 
 .pf-note{font-size:12.5px;color:var(--ink-soft);background:var(--paper);
   border:1px dashed var(--line);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px}
@@ -326,8 +334,9 @@ details.pf-entry .body dd a{color:var(--brand-deep);word-break:break-all}
   .report-head,.rp-member{box-shadow:none;border:0;border-radius:0;padding:0;margin:0 0 12px}
   .rp-member{break-before:page}
   .report-head + .rp-member{break-before:auto}
-  .rp-profile,.rp-chart{break-after:avoid}
-  .rp-list li{break-inside:avoid}
+  #folioBox .rp-member:first-child{break-before:auto}
+  .rp-profile,.rp-label{break-after:avoid}
+  .vol-card,.ct-card{break-inside:auto}
   /* 통계 보고서: 요약 숫자 5개를 한 줄로 */
   #statsBox .kpis{grid-template-columns:repeat(5,1fr);gap:8px}
   #statsBox .kpi{padding:10px 12px}
@@ -336,15 +345,14 @@ details.pf-entry .body dd a{color:var(--brand-deep);word-break:break-all}
   /* 인당 1~2쪽에 맞추려고 인쇄할 때만 촘촘하게 (화면은 읽기 편한 간격 그대로) */
   .rp-profile h3{font-size:16pt}
   .rp-profile p{font-size:9pt}
-  .rp-member .pf-tags{margin-top:6px;gap:4px}
-  .rp-member .pf-tag{font-size:8pt;padding:1px 7px}
-  .rp-chart{margin:8px 0 0}
-  .rp-chart .spark{height:42px}
-  .rp-chart .hint{font-size:7.5pt}
-  .rp-list{margin-top:8px}
-  .rp-list li{padding:4px 0}
-  .rp-list .when{font-size:8pt}
-  .rp-list .what{font-size:9.5pt;line-height:1.45;margin-top:1px}
+  .rp-eyebrow{font-size:8.5pt;margin-bottom:2px}
+  .rp-label{font-size:10pt;margin:8px 0 6px}
+  .rp-member .pf-time li{padding:0 0 6px 14px;break-inside:avoid}
+  .rp-member .pf-time .when{font-size:8pt}
+  .rp-member .pf-time .what{font-size:9.5pt;line-height:1.45;margin-top:1px}
+  table.mini.ct-table{font-size:9pt}
+  table.mini.ct-table td,table.mini.ct-table th{padding:5px 6px}
+  .off-name{font-size:11pt}
   .vol-card,.qual-head,table.mini tr{break-inside:avoid}
   .qual-head,.pf-sec{break-after:avoid}
   details.pf-entry summary::after{display:none}
@@ -625,6 +633,7 @@ const $$ = s => Array.from(document.querySelectorAll(s));
 let SESSION = null;   // {name, code, role}
 let DATA = [];
 let ROSTER = [];     // 단원명단 시트 명단(선생님에게만 내려온다). 코드는 포함되지 않는다
+let CONTENTS = [];   // 콘텐츠 시트(게시물별 좋아요·조회수). 선생님에게만 내려온다
 let periodDefaultSet = false;   // 선생님 화면 기간 기본값을 한 번만 정하기 위한 표시
 let editingId = null;
 
@@ -647,6 +656,7 @@ async function loadEntries(){
 async function saveEntries(member, entries){
   const out = await callApi("save", { member, entries });
   ROSTER = out.members || ROSTER;
+  CONTENTS = out.contents || CONTENTS;
 }
 
 /* ================= 로그인 ================= */
@@ -688,6 +698,7 @@ async function doLogin(name, code){
   }
   SESSION = { name: out.name, code: code, role: out.role };
   ROSTER = out.members || [];
+  CONTENTS = out.contents || [];
   DATA = out.entries || [];
   saveSession();
   await enterApp(true);
@@ -714,7 +725,7 @@ async function enterApp(animate){
 
 /* 로그인창으로 되돌리기 */
 function backToGate(msg){
-  clearSession(); SESSION = null; DATA = []; ROSTER = []; periodDefaultSet = false;
+  clearSession(); SESSION = null; DATA = []; ROSTER = []; CONTENTS = []; periodDefaultSet = false;
   $("#app").hidden = true;
   $("#gate").hidden = false;
   if (msg) gateError(msg); else $("#gateMsg").classList.remove("show");
@@ -767,6 +778,7 @@ $("#btnLogout").addEventListener("click", ()=>{
     SESSION.role = out.role || SESSION.role;
     DATA = out.entries || [];
     ROSTER = out.members || [];
+    CONTENTS = out.contents || [];
     saveSession();                       // 접속할 때마다 기간 연장
     setLoading(false);
     refreshFilters(); renderList(); renderStats(); renderFolio(); renderDash();
@@ -1048,6 +1060,41 @@ function reportHead(title, meta){
     + '<p>' + meta.filter(Boolean).map(esc).join(" · ") + '</p></div>';
 }
 
+/* 오프라인 참여 인원.
+   같은 행사를 단원 여럿이 각자 일지에 적으면 만난 인원이 겹쳐 더해진다(3명이 30명씩 적으면 90명).
+   그래서 '같은 날 + 같은 활동주제' 기록은 한 행사로 보고 칸(유아·청소년·성인)마다 가장 큰 값만 센다.
+   통계탭과 대시보드가 같은 숫자를 내도록 둘 다 이것을 쓴다. */
+function offlineEvents(rows){
+  const ev = {};
+  rows.forEach(e => {
+    const p = e.part || {};
+    const a = Number(p.infant)||0, b = Number(p.teen)||0, c = Number(p.adult)||0;
+    if (!(a + b + c)) return;
+    const k = e.date + "|" + (normTopic(e.topic) || e.topic);
+    const x = ev[k] || (ev[k] = { date:e.date, topic:e.topic, infant:0, teen:0, adult:0 });
+    x.infant = Math.max(x.infant, a); x.teen = Math.max(x.teen, b); x.adult = Math.max(x.adult, c);
+  });
+  return Object.values(ev);
+}
+function partTotal(rows){
+  return offlineEvents(rows).reduce((t,x) => ({ infant:t.infant+x.infant, teen:t.teen+x.teen, adult:t.adult+x.adult }),
+                                    { infant:0, teen:0, adult:0 });
+}
+/* 활동명(방과후 오락실 등)별로 모은다. 같은 활동을 여러 날 했으면 횟수와 인원을 더한다 */
+function offlineByName(rows){
+  const g = {};
+  offlineEvents(rows).forEach(x => {
+    const k = normTopic(x.topic) || x.topic;
+    const y = g[k] || (g[k] = { names:{}, dates:[], infant:0, teen:0, adult:0 });
+    y.names[x.topic] = (y.names[x.topic]||0) + 1; y.dates.push(x.date);
+    y.infant += x.infant; y.teen += x.teen; y.adult += x.adult;
+  });
+  return Object.values(g).map(y => {
+    y.title = Object.keys(y.names).sort((a,b)=> y.names[b]-y.names[a] || a.length-b.length)[0];
+    y.dates.sort(); return y;
+  }).sort((a,b)=> a.dates[0].localeCompare(b.dates[0]));
+}
+
 function fillPeriod(sels, months){
   const byYear = {};
   months.forEach(m => { const y = m.slice(0,4); (byYear[y] = byYear[y] || []).push(m); });
@@ -1140,55 +1187,88 @@ function dur(e){
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 
 /* ================= 통계 ================= */
+/* =========================================================
+   통계탭 = '활동 결과' 수치 보고서 (2026-11 선생님 화면 구성안)
+   요약 → 월별 추이 → 인스타그램 콘텐츠 → 유튜브 콘텐츠 → 활동유형 · 오프라인 활동
+   콘텐츠 표는 콘텐츠 시트(게시물별 좋아요·조회수)에서 오고 선생님 화면에만 나온다.
+========================================================= */
+const ONLINE_TYPES = ["온라인 콘텐츠 기획/제작","촬영/편집","업로드"];
+
+function contentTable(platform, list){
+  if (!list.length){
+    return '<div class="card ct-card"><h2>' + platform + ' 콘텐츠</h2><div class="card-body">'
+      + '<p class="hint" style="margin:0">고른 기간에 등록된 ' + platform + ' 게시물이 없습니다. '
+      + '단원이 일지에 게시물 주소를 붙여넣으면 구글 시트의 <b>콘텐츠</b> 탭에 자동으로 한 줄씩 생깁니다.</p></div></div>';
+  }
+  const n = v => v == null ? "-" : v.toLocaleString("ko-KR");
+  const likes = list.reduce((a,c)=>a+(c.likes||0),0), views = list.reduce((a,c)=>a+(c.views||0),0);
+  const 빈칸 = list.filter(c => c.likes == null || c.views == null).length;
+  return '<div class="card ct-card"><h2>' + platform + ' 콘텐츠</h2><div class="card-body"><div class="tablewrap">'
+    + '<table class="mini ct-table"><thead><tr><th>제목</th><th>총 좋아요 수</th><th>총 조회수</th><th>집계 기준일</th></tr></thead><tbody>'
+    + list.map(c => '<tr><td><a href="' + esc(c.url) + '" target="_blank" rel="noopener">' + esc(c.title || "(제목 없음)") + '</a>'
+        + '<span class="posted">' + esc(c.posted.replace(/-/g,".")) + (c.member ? ' · ' + esc(c.member) : '') + '</span></td>'
+        + '<td>' + n(c.likes) + '</td><td>' + n(c.views) + '</td>'
+        + '<td>' + (c.asof ? esc(c.asof.replace(/-/g,".")) : "-") + '</td></tr>').join("")
+    + '<tr><td><b>합계 (' + list.length + '건)</b></td><td><b>' + n(likes) + '</b></td><td><b>' + n(views) + '</b></td><td>-</td></tr>'
+    + '</tbody></table></div>'
+    + (빈칸 ? '<p class="hint no-print" style="margin:10px 0 0">숫자가 아직 없는 게시물 ' + 빈칸
+            + '건 — 구글 시트 <b>콘텐츠</b> 탭에 좋아요·조회수·집계 기준일을 적으면 반영됩니다.</p>' : '')
+    + '</div></div>';
+}
+
 function renderStats(){
   const sm = val("#s-member"), mo = val("#s-month");
   const rows = pick(sm, mo, "");
   const box = $("#statsBox");
   if(!rows.length){ box.innerHTML = emptyBox("집계할 기록이 없습니다","일지가 쌓이면 이 화면이 자동으로 채워집니다."); return; }
 
-  const platforms=[["tiktok","틱톡"],["insta","인스타"],["youtube","유튜브"],["blog","블로그"]];
-  const mk={}, up={}; platforms.forEach(p=>{ mk[p[0]]=0; up[p[0]]=0; });
-  let part={infant:0,teen:0,adult:0}, hours=0;
-  const byType={}, byMonth={};
+  let hours = 0; const byType = {}, byMonth = {};
   rows.forEach(e=>{
-    platforms.forEach(p=>{ mk[p[0]]+=Number(e.make[p[0]])||0; up[p[0]]+=Number(e.up[p[0]])||0; });
-    part.infant+=Number(e.part.infant)||0; part.teen+=Number(e.part.teen)||0; part.adult+=Number(e.part.adult)||0;
     hours += dur(e);
     (e.types||[]).forEach(t=> byType[t]=(byType[t]||0)+1);
     byMonth[e.date.slice(0,7)]=(byMonth[e.date.slice(0,7)]||0)+1;
   });
-  const totalMake=sum(mk), totalUp=sum(up), totalPart=sum(part);
+  const 콘텐츠활동 = rows.filter(e => (e.types||[]).some(t => ONLINE_TYPES.includes(t))).length;
+  const 오프라인활동 = rows.filter(e => (e.types||[]).includes("오프라인 홍보")).length;
+  const 활동인원 = new Set(rows.map(e=>e.member)).size;
 
-  const 누구 = SESSION.role !== "admin" ? SESSION.name
-            : sm ? sm
-            : "단원 " + new Set(rows.map(e=>e.member)).size + "명";
-  let html = reportHead(reportPeriod(mo, rows) + " SYMC 마케터 활동 실적",
+  const 누구 = SESSION.role !== "admin" ? SESSION.name : sm ? sm : "단원 " + 활동인원 + "명";
+  let html = reportHead(reportPeriod(mo, rows) + " SYMC 마케터 활동 결과",
                         ["집계 기간 " + periodLabel(mo), 누구, "출력일 " + todayDots()])
     + '<div class="kpis">'
     + '<div class="kpi accent"><b>'+rows.length+'</b><span>총 활동 건수</span></div>'
     + '<div class="kpi"><b>'+(Math.round(hours*10)/10)+'</b><span>누적 활동시간</span></div>'
-    + '<div class="kpi"><b>'+totalMake+'</b><span>콘텐츠 제작·기획</span></div>'
-    + '<div class="kpi"><b>'+totalUp+'</b><span>콘텐츠 업로드</span></div>'
-    + '<div class="kpi"><b>'+totalPart+'</b><span>오프라인 참여인원</span></div></div>'
-    + '<div class="card"><h2>월별 활동 추이</h2><div class="card-body">'+monthChart(byMonth)+'</div></div>'
-    + '<div class="two">'
-    +   '<div class="card"><h2>플랫폼별 콘텐츠 제작</h2><div class="card-body">'
-    +     bars(platforms.map(p=>[p[1], mk[p[0]]]), "", "건")
-    +     '<p class="hint" style="margin-top:12px">합계 '+totalMake+'건</p></div></div>'
-    +   '<div class="card"><h2>플랫폼별 콘텐츠 업로드</h2><div class="card-body">'
-    +     bars(platforms.map(p=>[p[1], up[p[0]]]), "b", "건")
-    +     '<p class="hint" style="margin-top:12px">합계 '+totalUp+'건</p></div></div>'
-    + '</div>'
-    + '<div class="card"><h2>제작 대비 업로드</h2><div class="card-body">'
-    +   '<div class="legend"><span><i style="background:var(--brand)"></i>제작·기획</span><span><i style="background:var(--teal)"></i>업로드</span></div>'
-    +   '<table class="mini"><thead><tr><th>플랫폼</th><th>제작</th><th>업로드</th><th>업로드율</th></tr></thead><tbody>'
-    +   platforms.map(p=>'<tr><td>'+p[1]+'</td><td>'+mk[p[0]]+'</td><td>'+up[p[0]]+'</td><td>'+(mk[p[0]]?Math.round(up[p[0]]/mk[p[0]]*100)+"%":"-")+'</td></tr>').join("")
-    +   '<tr><td><b>합계</b></td><td><b>'+totalMake+'</b></td><td><b>'+totalUp+'</b></td><td><b>'+(totalMake?Math.round(totalUp/totalMake*100)+"%":"-")+'</b></td></tr>'
-    +   '</tbody></table></div></div>'
-    + '<div class="two">'
-    +   '<div class="card"><h2>활동유형 분포</h2><div class="card-body">'+bars(Object.entries(byType).sort((a,b)=>b[1]-a[1]), "", "건")+'</div></div>'
-    +   '<div class="card"><h2>참여 대상</h2><div class="card-body">'+bars([["유아",part.infant],["청소년",part.teen],["성인",part.adult]], "c", "명")+'</div></div>'
-    + '</div>';
+    + '<div class="kpi"><b>'+콘텐츠활동+'</b><span>콘텐츠 제작 및 업로드</span></div>'
+    + '<div class="kpi"><b>'+오프라인활동+'</b><span>오프라인 활동</span></div>'
+    + '<div class="kpi"><b>'+활동인원+'</b><span>총 활동 인원</span></div></div>'
+    + '<div class="card"><h2>월별 활동 추이</h2><div class="card-body">'+monthChart(byMonth)+'</div></div>';
+
+  /* 게시물별 표는 선생님 화면에만(콘텐츠 목록이 선생님에게만 내려온다) */
+  if (SESSION.role === "admin"){
+    const admins = adminNames();
+    const list = (CONTENTS||[])
+      .filter(c => !mo || String(c.posted).startsWith(mo))
+      .filter(c => !sm || c.member === sm)
+      .filter(c => !admins.has(c.member))
+      .sort((a,b)=> String(a.posted).localeCompare(String(b.posted)));
+    html += contentTable("인스타그램", list.filter(c => c.platform === "인스타그램"))
+          + contentTable("유튜브",     list.filter(c => c.platform === "유튜브"));
+  }
+
+  const 행사 = offlineByName(rows);
+  const 총 = 행사.reduce((t,y)=>t + y.infant + y.teen + y.adult, 0);
+  html += '<div class="two">'
+    + '<div class="card"><h2>활동유형 분포</h2><div class="card-body">'+bars(Object.entries(byType).sort((a,b)=>b[1]-a[1]), "", "건")+'</div></div>'
+    + '<div class="card"><h2>오프라인 활동</h2><div class="card-body">'
+    + (행사.length
+        ? 행사.map(y => '<div class="off-ev"><div class="off-name">' + esc(y.title)
+              + '<span>' + y.dates.length + '회 · ' + y.dates.map(ymd).join(", ") + '</span></div>'
+              + '<div class="off-sub">참여 대상</div>'
+              + bars([["유아",y.infant],["청소년",y.teen],["성인",y.adult]], "c", "명") + '</div>').join("")
+          + '<p class="hint" style="margin:14px 0 0">합계 ' + 총.toLocaleString("ko-KR") + '명 · '
+          + '같은 날 같은 활동을 여러 단원이 적었으면 한 번만 셉니다.</p>'
+        : '<p class="hint" style="margin:0">고른 기간에 참여 인원을 적은 오프라인 활동이 없습니다.</p>')
+    + '</div></div></div>';
   box.innerHTML = html;
 }
 
@@ -1321,33 +1401,24 @@ function renderFolioReport(){
   rows.forEach(e => { (by[e.member] = by[e.member] || []).push(e); });
   const names = Object.keys(by).sort((a,b)=>a.localeCompare(b));
 
-  let html = reportHead(reportPeriod(mo, rows) + " SYMC 마케터 활동 포트폴리오",
-    ["느낀점 · 배운 점", "집계 기간 " + periodLabel(mo),
-     "단원 " + names.length + "명 · 활동 " + rows.length + "건", "출력일 " + todayDots()]);
-
-  html += names.map(n => {
+  /* 선생님 구성안: 이름 · 기간 · 성장기록(날짜 · 주제 + 느낀점)만.
+     건수·시간·해시태그·그래프처럼 사람마다 달라 예산·인원 보고와 어긋날 수 있는 숫자는 뺀다. */
+  box.innerHTML = names.map(n => {
     const r = by[n];
-    const hours = Math.round(r.reduce((a,e)=>a+dur(e),0)*10)/10;
-    const byMonth = {};
-    r.forEach(e => { const k = e.date.slice(0,7); byMonth[k] = (byMonth[k]||0) + 1; });
-    const cum = {}; let run = 0;
-    Object.keys(byMonth).sort().forEach(k => { run += byMonth[k]; cum[k] = run; });
+    const ys = r[0].date.slice(0,4), ye = r[r.length-1].date.slice(0,4);
+    const 연도 = ys === ye ? ys : ys + "–" + ye;
     return '<section class="rp-member">'
       + '<div class="rp-profile">'
+      +   '<div class="rp-eyebrow">' + 연도 + ' 세종청소년음악센터 소리지음 · 마케터 홍보단</div>'
       +   '<h3>' + esc(n) + '</h3>'
-      +   '<p>' + ymd(r[0].date) + ' ~ ' + ymd(r[r.length-1].date)
-      +       ' · 활동 ' + r.length + '건 · 누적 ' + hours + '시간</p>'
-      +   folioTags(r)
+      +   '<p>' + ymd(r[0].date) + ' ~ ' + ymd(r[r.length-1].date) + '</p>'
       + '</div>'
-      + '<div class="rp-chart">' + monthChart(cum)
-      +   '<p class="hint" style="margin:6px 0 0">월별 누적 활동 건수</p></div>'
-      + '<ol class="rp-list">'
-      +   r.map(e => '<li><div class="when">' + dateLabel(e.date) + ' · ' + esc(e.topic) + '</div>'
+      + '<div class="rp-label">성장기록</div>'
+      + '<ul class="pf-time">'
+      +   r.map(e => '<li><div class="when">' + ymd(e.date) + ' · ' + esc(e.topic) + '</div>'
                     + '<div class="what">' + esc(e.evaluation) + '</div></li>').join("")
-      + '</ol></section>';
+      + '</ul></section>';
   }).join("");
-
-  box.innerHTML = html;
 }
 
 function renderFolio(){
@@ -1584,13 +1655,9 @@ function renderDash(){
   const 기간 = periodLabel(mo);
 
   /* ---------- 1. 요약 ---------- */
-  let hours=0, made=0, uped=0; const part={infant:0,teen:0,adult:0};
-  rows.forEach(e=>{
-    hours += dur(e); made += sum(e.make); uped += sum(e.up);
-    part.infant += Number(e.part.infant)||0;
-    part.teen   += Number(e.part.teen)||0;
-    part.adult  += Number(e.part.adult)||0;
-  });
+  let hours=0, made=0, uped=0;
+  rows.forEach(e=>{ hours += dur(e); made += sum(e.make); uped += sum(e.up); });
+  const part = partTotal(rows);   // 같은 행사를 여럿이 적어도 한 번만 센다
   const 활동단원 = new Set(rows.map(e=>e.member)).size;
   const 총참여 = part.infant + part.teen + part.adult;
 
@@ -1759,9 +1826,7 @@ function renderDash(){
     + dates.map(d=>{
         const r = byDate[d];
         const who = [...new Set(r.map(e=>e.member))];
-        const i = r.reduce((a,e)=>a+(Number(e.part.infant)||0),0);
-        const t = r.reduce((a,e)=>a+(Number(e.part.teen)||0),0);
-        const u = r.reduce((a,e)=>a+(Number(e.part.adult)||0),0);
+        const pp = partTotal(r), i = pp.infant, t = pp.teen, u = pp.adult;
         const topics = [...new Set(r.map(e=>e.topic))].join(", ");
         /* 한 날짜에 여러 단원이 다른 시간에 움직였을 수 있으므로 그날 전체 시간대로 묶는다 */
         const st = r.map(e=>e.start).filter(Boolean).sort()[0] || "";

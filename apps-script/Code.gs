@@ -94,7 +94,7 @@ function normalizeRoleColumn() {
  * 배포 후 첫 요청에서 저장된 버전과 다르면 setupSheets() 를 한 번 자동으로 실행하므로,
  * 더 이상 Apps Script 편집기에서 setup 을 손으로 돌릴 필요가 없다.
  */
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;   // 2: 콘텐츠 시트 추가 (2026-11)
 
 /* 배포 표시. GitHub Actions 가 배포할 때 커밋 번호로 바꿔 넣는다(저장소에는 'local' 로 남는다). */
 const BUILD = 'local';
@@ -126,6 +126,7 @@ function setupSheets() {
   upgradeRoleOptions();
   normalizeRoleColumn();
   applyValidation();
+  getContentSheet();
 }
 
 /** 편집기에서 손으로 돌리고 싶을 때용. 자동 갱신과 같은 일을 하고 알림을 띄운다. */
@@ -252,6 +253,121 @@ function rosterFor(auth) {
   return out;
 }
 
+/* =========================================================
+   콘텐츠 시트 — 통계탭의 '인스타그램 콘텐츠 / 유튜브 콘텐츠' 표가 여기서 나온다.
+
+   단원이 일지 본문에 붙여넣은 인스타·유튜브 게시물 주소를 서버가 찾아
+   이 시트에 한 줄씩 자동으로 넣는다(같은 게시물은 한 번만).
+   선생님은 보고 직전에 제목·좋아요·조회수·집계 기준일만 채우면 된다.
+   좋아요·조회수는 SNS 와 자동 연동이 안 되므로 '그날 기준' 숫자를 손으로 적는 방식이다.
+========================================================= */
+const SHEET_CONTENTS = '콘텐츠';
+const CONTENT_HEADERS = ['플랫폼','제목','링크','게시일','좋아요','조회수','집계 기준일','올린 단원'];
+const URL_RE = /https?:\/\/[^\s<>"'()\[\]]+/g;
+
+function getContentSheet() {
+  let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CONTENTS);
+  if (!sheet) {
+    sheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet(SHEET_CONTENTS);
+    sheet.appendRow(CONTENT_HEADERS);
+    sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, 1, CONTENT_HEADERS.length).setFontWeight('bold');
+    sheet.getRange('D:D').setNumberFormat('@');            // 게시일은 글자 그대로
+    sheet.getRange('E:F').setNumberFormat('#,##0');        // 좋아요·조회수
+    sheet.getRange('G:G').setNumberFormat('yyyy.mm.dd');   // 집계 기준일
+    sheet.setColumnWidth(2, 260);
+    sheet.setColumnWidth(3, 280);
+    sheet.getRange('J1').setValue('단원이 일지에 붙여넣은 인스타·유튜브 주소가 자동으로 한 줄씩 들어옵니다.');
+    sheet.getRange('J2').setValue('제목은 처음에 활동주제로 채워지니 실제 게시물 제목으로 고쳐주세요.');
+    sheet.getRange('J3').setValue('보고 직전에 좋아요·조회수와 그 숫자를 본 날짜(집계 기준일)를 적으면 통계탭에 나옵니다.');
+    sheet.getRange('J4').setValue('통계에서 빼고 싶은 게시물은 그 줄을 지우지 말고 플랫폼 칸을 비워두세요(지우면 다시 생깁니다).');
+    sheet.setColumnWidth(10, 520);
+  }
+  return sheet;
+}
+
+/**
+ * 게시물 주소를 하나의 표준 모양으로 바꾼다. 같은 게시물이 ?igsh= 같은 꼬리표나
+ * youtu.be / youtube.com 처럼 다르게 붙여넣어져도 한 줄로 모이게 하려는 것.
+ * 인스타·유튜브 게시물이 아니면(프로필 주소 등) null.
+ */
+function canonUrl(u) {
+  const m = String(u || '').trim().match(/^https?:\/\/(?:www\.|m\.)?([^\/?#]+)(\/[^?#]*)?(\?[^#]*)?/i);
+  if (!m) return null;
+  const host = m[1].toLowerCase(), path = (m[2] || '').replace(/\/+$/, ''), q = m[3] || '';
+  if (/(^|\.)instagram\.com$/.test(host)) {
+    const p = path.match(/^\/(?:[^\/]+\/)?(p|reel|reels|tv)\/([^\/]+)/);
+    if (!p) return null;
+    const kind = p[1] === 'reels' ? 'reel' : p[1];
+    return { platform: '인스타그램', key: 'ig:' + p[2], url: 'https://www.instagram.com/' + kind + '/' + p[2] + '/' };
+  }
+  let id = null;
+  if (host === 'youtu.be') id = path.slice(1).split('/')[0];
+  else if (/(^|\.)youtube\.com$/.test(host)) {
+    const s = path.match(/^\/(shorts|live|embed)\/([^\/]+)/);
+    if (s) id = s[2];
+    else { const v = q.match(/[?&]v=([^&]+)/); if (v) id = v[1]; }
+  }
+  return id ? { platform: '유튜브', key: 'yt:' + id, url: 'https://youtu.be/' + id } : null;
+}
+
+/** 선생님(admin) 이름들. 선생님이 시험 삼아 쓴 일지의 링크는 콘텐츠로 올리지 않는다 */
+function adminNamesSet() {
+  const rows = getMemberSheet().getDataRange().getValues();
+  const s = {};
+  for (let i = 1; i < rows.length; i++) {
+    const n = String(rows[i][0] || '').trim();
+    if (n && normRole(rows[i][2]) === 'admin') s[n] = true;
+  }
+  return s;
+}
+
+/**
+ * 일지 본문에서 새 게시물 주소를 찾아 콘텐츠 시트에 덧붙인다. 이미 있는 게시물은 건드리지 않는다
+ * (선생님이 고친 제목·숫자를 덮어쓰지 않으려고). 호출하는 쪽이 잠금을 잡고 있어야 한다.
+ */
+function syncContents(entries) {
+  const sheet = getContentSheet();
+  const last = sheet.getLastRow();
+  const seen = {};
+  if (last >= 2) {
+    sheet.getRange(2, 3, last - 1, 1).getValues().forEach(function (r) {
+      const c = canonUrl(r[0]); if (c) seen[c.key] = true;
+    });
+  }
+  const admins = adminNamesSet();
+  const add = [];
+  entries.forEach(function (en) {
+    if (admins[String(en.member).trim()]) return;
+    const text = [en.content, en.evaluation, en.etc, en.offline, en.next].join(' ');
+    (text.match(URL_RE) || []).forEach(function (raw) {
+      const c = canonUrl(raw.replace(/[.,)\]]+$/, ''));
+      if (!c || seen[c.key]) return;
+      seen[c.key] = true;
+      add.push([c.platform, en.topic || '', c.url, "'" + en.date, '', '', '', en.member]);
+    });
+  });
+  if (add.length) sheet.getRange(sheet.getLastRow() + 1, 1, add.length, CONTENT_HEADERS.length).setValues(add);
+}
+
+/** 통계탭에 보낼 콘텐츠 목록. 선생님에게만 준다 */
+function contentsFor(auth) {
+  if (auth.role !== 'admin') return [];
+  const sheet = getContentSheet();
+  const last = sheet.getLastRow();
+  if (last < 2) return [];
+  const num = function (v) { return (v === '' || v === null || isNaN(Number(v))) ? null : Number(v); };
+  return sheet.getRange(2, 1, last - 1, CONTENT_HEADERS.length).getValues()
+    .filter(function (r) { return String(r[0]).trim() && String(r[2]).trim(); })
+    .map(function (r) {
+      return {
+        platform: String(r[0]).trim(), title: String(r[1]).trim(), url: String(r[2]).trim(),
+        posted: fmtDate(r[3]), likes: num(r[4]), views: num(r[5]),
+        asof: r[6] ? fmtDate(r[6]) : '', member: String(r[7]).trim()
+      };
+    });
+}
+
 /** 이름+코드 확인. 실패 시 null */
 function authenticate(name, code) {
   if (!name || !code) return null;
@@ -277,7 +393,14 @@ function doPost(e) {
     if (!auth) return json({ ok: false, error: 'auth', message: '이름 또는 코드가 올바르지 않습니다.' });
 
     if (body.action === 'login' || body.action === 'list') {
-      return json({ ok: true, role: auth.role, name: auth.name, entries: entriesFor(auth), members: rosterFor(auth) });
+      const entries = entriesFor(auth);
+      if (auth.role === 'admin') {
+        /* 다른 요청이 쓰는 중이면 이번엔 건너뛴다. 다음에 열 때 모인다 */
+        const lock = LockService.getScriptLock();
+        if (lock.tryLock(5000)) { try { syncContents(entries); } finally { lock.releaseLock(); } }
+      }
+      return json({ ok: true, role: auth.role, name: auth.name, entries: entries,
+                    members: rosterFor(auth), contents: contentsFor(auth) });
     }
 
     if (body.action === 'save') {
@@ -294,8 +417,10 @@ function doPost(e) {
           en.member = target;
           sheet.appendRow(entryToRow(en));
         });
+        syncContents(entries);
       } finally { lock.releaseLock(); }
-      return json({ ok: true, role: auth.role, entries: entriesFor(auth), members: rosterFor(auth) });
+      return json({ ok: true, role: auth.role, entries: entriesFor(auth), members: rosterFor(auth),
+                    contents: contentsFor(auth) });
     }
 
     return json({ ok: false, error: 'unknown_action' });
